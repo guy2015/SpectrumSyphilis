@@ -1,0 +1,5 @@
+PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) $(SHLIB_OPENMP_CFLAGS)
+PKG_CFLAGS = $(SHLIB_OPENMP_CFLAGS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CPPFLAGS=`Rscript -e 'Rcpp:::CxxFlags()'` -I'C:\Program Files\boost-build\include\boost-1_72/' -I'C:\Program Files\R\armadillo-9.700.3\include'
+CXX_STD = CXX11

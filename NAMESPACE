@@ -1,0 +1,3 @@
+useDynLib(SoSSyphTrends)
+exportPattern("^[[:alpha:]]+")
+importFrom(Rcpp, evalCpp)
