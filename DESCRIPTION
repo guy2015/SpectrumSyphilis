@@ -6,7 +6,7 @@ Author: S.Guy Mahiane
 Maintainer: S.Guy Mahiane<GMahiane@avenirhealth.org>
 Description: Uses Prevalence data from surveys and Antenatal Care (ANC) together with duration of Syphilis infection to generate prevalence and incidence trends using Segond Order segmented polynomials.
 Depends: R (>= 3.1.0),
-Imports: fastmatch (>= 1.1), abind (>= 1.4), mgcv (>= 1.8), mvtnorm, plyr, dplyr, tidyverse, openxlsx, scales, gridExtra, cowplot, reshape2, RColorBrewer, Rcpp (>= 0.11.0)
+Imports: fastmatch (>= 1.1), abind (>= 1.4), mgcv (>= 1.8), mvtnorm, plyr, dplyr, tidyverse, doParallel, openxlsx, scales, gridExtra, cowplot, reshape2, RColorBrewer, Rcpp (>= 0.11.0)
 LinkingTo: BH, Rcpp
 License: GPL-3
 Encoding: UTF-8
