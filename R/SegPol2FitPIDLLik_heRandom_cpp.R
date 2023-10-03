@@ -1904,7 +1904,7 @@ RunFitSyphilis1 <- function(name.data.file,
   Sypdur_C = Sypdurs$Sypdur_C
 
   duration.syphilis=data.frame(t.zone=c("A","B","C"),duration=c(Sypdur_A,Sypdur_B,Sypdur_C))
-  if(!is.null(list_countries)) data.syphilis <- subset(data.syphilis, ISO3%in%list_countries)
+  if(!is.null(list_countries)) data.syphilis <- subset(data.syphilis, ISO3_letters%in%list_countries)
   if(!is.null(filter_survey)) data.syphilis <- subset(data.syphilis, Data_type%in%filter_survey)
 
   if(nrow(data.syphilis)==0)
