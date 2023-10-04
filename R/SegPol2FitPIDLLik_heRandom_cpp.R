@@ -2596,15 +2596,17 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
   rm(temp_data)
 
   #Grabing data by regions
-  LongCongenDataOutForPlots <- subset(LongCongenDataOutForPlots,!(Country%in%paste(unique(LongCongenDataOutForPlots$`WHO Region`),"total")))
-
-  LongCongenDataOutForPlots$SDG_Region <- sapply(LongCongenDataOutForPlots$`ISO code`, function(x)
+  if(nrow(  LongCongenDataOutForPlots)>=1)
   {
-    res <- NA
-    idx <- which(SDGRegions$COUNTRY_CODE==x)
-    if(length(idx)>=1) res <- SDGRegions$'SDG Regions'[idx[1]]
-    res
-  })
+    LongCongenDataOutForPlots <- subset(LongCongenDataOutForPlots,!(Country%in%paste(unique(LongCongenDataOutForPlots$`WHO Region`),"total")))
+    LongCongenDataOutForPlots$SDG_Region <- sapply(LongCongenDataOutForPlots$`ISO code`, function(x)
+    {
+      res <- NA
+      idx <- which(SDGRegions$COUNTRY_CODE==x)
+      if(length(idx)>=1) res <- SDGRegions$'SDG Regions'[idx[1]]
+      res
+    })
+  }
 
   if(is.null(list_countries))
   {
@@ -2963,7 +2965,7 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
   }
 
   LongRegCSABO <- data.frame()
-  if(!is.null(list_countries))
+  if(is.null(list_countries))
   {
     for(vn in c("Liveborn with clinical CS",
                 "Prematurity or LBW due to CS",
@@ -3001,7 +3003,7 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
                     "NationalPop15-49yM+F", "Country_Curve_Fit")
 
   RegDataPrevInc <- data.frame()
-  if(!is.null(list_countries))
+  if(is.null(list_countries))
   {
     for(reg in unique(CongenDataOut$SDG_Region))
     {
@@ -3350,7 +3352,7 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
   )
 
   LongRegDataPrevIncForPlots <- data.frame()
-  if(!is.null(list_countries))
+  if(is.null(list_countries))
   {
     for(ii in seq_len(length(idxtoplot)))
     {
