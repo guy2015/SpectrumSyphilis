@@ -4970,6 +4970,8 @@ plot_GlobSyphPerBirth <- function(xCSProj, proj_years=c(2012,2016,2020))
   library(gridExtra)
   require(cowplot)
 
+  if(nrow(xCSProj$LongRegCSABO)==0) return(NULL)
+
   dcsabo <- subset(xCSProj$LongRegCSABO, indicator%in%c("Liveborn with clinical CS",
                                                 "Prematurity or LBW due to CS",
                                                 "Neonatal death due to CS",
@@ -5035,6 +5037,8 @@ plot_GlobABO <- function(xCSProj, proj_years=c(2012,2016,2020))
   library(scales)
   library(gridExtra)
   require(cowplot)
+
+  if(nrow(xCSProj$LongRegCSABO)==0) return(NULL)
 
   dabo <- subset(xCSProj$LongRegCSABO, indicator%in%c("ABO, not seen in ANC", "ABO, ANC women not screened",
                                               "ABO, ANC-screened women not treated",
@@ -5116,6 +5120,8 @@ plot_GlobMatSypPrev <- function(xCSProj, proj_years=c(2010:2021), fbreaks=c(2010
   library(gridExtra)
   require(cowplot)
 
+  if(nrow(xCSProj$LongCongenDataOutForPlots)==0) return(NULL)
+
   temp_maternal_syph <- subset(xCSProj$LongCongenDataOutForPlots,Country%in%c("Global", unique(xCSProj$LongCongenDataOutForPlots$SDG_Region))
                                &indicator=="Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)"
                                &Year%in%proj_years)
@@ -5190,6 +5196,8 @@ plot_GlobPrevIncR <- function(xCSProj, proj_years=c(2010:2021), fbreaks=c(2010,2
   library(gridExtra)
   require(cowplot)
 
+  if(nrow(xCSProj$LongRegDataPrevIncForPlots)==0) return(NULL)
+
   df_a <- subset(xCSProj$LongRegDataPrevIncForPlots,Year%in%proj_years & indicator%in%c("Prevalence (%)","Incidence rate") & sex%in%"Both sexes")
   df_a$indicator[df_a$indicator=="Incidence rate"] <- "Incidence rate (%)"
   names(df_a)[names(df_a)=="SDG_Region"] <- "region"
@@ -5260,6 +5268,8 @@ plot_GlobPrevIncCases <- function(xCSProj, proj_years=c(2010:2021), fbreaks=c(20
   library(scales)
   library(gridExtra)
   require(cowplot)
+
+  if(nrow(xCSProj$LongRegDataPrevIncForPlots)==0) return(NULL)
 
   df_b <- subset(xCSProj$LongRegDataPrevIncForPlots,Year%in%proj_years & indicator%in%c("Incidence cases","Prevalence cases (#)") & sex%in%"Both sexes")
   df_b$indicator[df_b$indicator=="Incidence cases"] <- "Incident cases (x1000)"
