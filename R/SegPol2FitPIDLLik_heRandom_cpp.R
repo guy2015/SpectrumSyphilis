@@ -5120,7 +5120,7 @@ plot_GlobMatSypPrev <- function(xCSProj, proj_years=c(2010:2021), fbreaks=c(2010
   library(gridExtra)
   require(cowplot)
 
-  if(nrow(xCSProj$LongCongenDataOutForPlots)==0) return(NULL)
+  if(nrow(xCSProj$LongRegCSABO)==0) return(NULL)
 
   temp_maternal_syph <- subset(xCSProj$LongCongenDataOutForPlots,Country%in%c("Global", unique(xCSProj$LongCongenDataOutForPlots$SDG_Region))
                                &indicator=="Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)"
