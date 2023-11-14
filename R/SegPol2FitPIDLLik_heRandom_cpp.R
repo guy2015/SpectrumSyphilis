@@ -465,17 +465,46 @@ idxtoplot <- list(c("EstimatePrevF", "PrevLB_2.5%F", "PrevUB_97.5%F"),
 #' @description A function that does blabla, blabla.
 #' @keywords internal
 #' @export
-fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file, Fmaxknots, FB_ProjMax_F, FB_ProjMax_B,
-                                duration.syphilis, data.syphilis, PopSizeBoth, PopSizeMen, PopSizeWomen,
-                                ISO3, year_predict, zerprev_adj=1/100, MtoFRatio, fn_min_year_last_data, fn_cores=4, autosavefile=TRUE)
+fCountryAnalysis_glob <- function(Nboots=1000,
+                                  fname.data.file = name.data.file,
+                                  Fmaxknots,
+                                  FB_ProjMax_F,
+                                  FB_ProjMax_B,
+                                duration.syphilis,
+                                data.syphilis,
+                                PopSizeBoth,
+                                PopSizeMen,
+                                PopSizeWomen,
+                                PopSizeMSM,
+                                PopSizeFSW,
+                                ISO3,
+                                year_predict,
+                                zerprev_adj=1/100,
+                                MtoFRatio,
+                                LRtoHRPOR,
+                                fn_min_year_last_data,
+                                fn_cores=4,
+                                autosavefile=TRUE)
 {
   PopSize = PopSizeBoth;
   PopSizeMales = PopSizeMen;
   PopSizeFemales = PopSizeWomen
+  PopSizeMSM_in = PopSizeMSM;
+  PopSizeFSW_in = PopSizeFSW;
   SyphData = data.syphilis;
   #Name of the output file
-  name.out.file = paste(paste(substr(fname.data.file,1,nchar(fname.data.file)-5),as.character(Sys.Date()),sep="_"),"_out.xlsx",sep="")
-  name.out.file = substr(name.out.file,4,nchar(name.out.file));
+  name.out.file = fname.data.file
+  if(grepl("/",name.out.file))
+  {
+    nn <- max(unlist(gregexpr('/', name.out.file)))
+    name.out.file <- substr(name.out.file,nn+1, nchar(name.out.file))
+  }
+  name.out.file <- paste(paste(substr(name.out.file,1,nchar(name.out.file)-5),as.character(Sys.Date()),sep="_"),"_out.xlsx",sep="")
+  if(nchar(name.out.file)>218)
+  {
+    name.out.file <- substr(name.out.file,nchar(name.out.file)-217,nchar(name.out.file))
+  }
+
   #List of countries
   lcountry = unique(data.syphilis$Country) #lcountry = levels(data.syphilis$Country)
 
@@ -543,6 +572,18 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
                  "CaseInciEstM", "CaseIncMedM", "CaseIncM_LoB", "CaseIncM_UpB",
                  "CaseInciEstMPlusF", "CaseIncMedMPlusF", "CaseIncMPlusF_LoB", "CaseIncMPlusF_UpB",
                  "PopM","PopF","PopMPlusF")
+
+
+  tttKPs = c("Year", "Country","ISO3","WHO_Region","EstimatePrevFSW", "MedianPrevFSW", "PrevLB_2.5%FSW", "PrevUB_97.5%FSW",
+          "EstimatePrevMSM", "MedianPrevMSM", "PrevLB_2.5%MSM", "PrevUB_97.5%MSM")
+
+  tttElKPs = c("CasePrev_EstFSW", "CasePrev_MedFSW", "CasePrev_LB_2.5%FSW", "CasePrev_UB_97.5%FSW",
+            "CasePrev_EstMSM", "CasePrev_MedMSM", "CasePrev_LB_2.5%MSM", "CasePrev_UB_97.5%MSM")
+
+  syph_nn1KPs = c("year","Country","ISO3","WHO_Region","PrevEstFSW","PrevEstFSW_Med", "PrevEstFSW_LoB", "PrevEstFSW_UpB",
+               "PrevEstMSM","PrevEstMSM_Med", "PrevEstMSM_LoB", "PrevEstMSM_UpB",
+               "CasePrevEstFSW", "CasePrevMedFSW", "CasePrevFSW_LoB", "CasePrevFSW_UpB",
+               "CasePrevEstMSM", "CasePrevMedMSM", "CasePrevMSM_LoB", "CasePrevMSM_UpB")
 
   nsep <- 0
   nligne_decal_titre <- 0
@@ -682,12 +723,15 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
       resboot_SyphilisInciF = resboot_Syphilis
       resboot_SyphilisInciM = resboot_Syphilis
 
+      resboot_SyphilisPrevFSW = resboot_Syphilis
+      resboot_SyphilisPrevMSM = resboot_Syphilis
+
       Out_syphilis = data.frame(year=year_predict)
       Out_syphilis$Country = lc;
       Out_syphilis$ISO3 = alpha_iso3
 
       Out_syphilis$WHO_Region = cdata.syph$WHO_region[1]
-
+      Out_syphilisKPs <- Out_syphilis
       #Incidence
       incboot_Syphilis = resboot_Syphilis
 
@@ -754,6 +798,13 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
       try(gmodestim0PID  <- BestFitPIDLLik_Random(vX=scyears, vY=tab$p, vW=tab$Weights, maxknots=Fmaxknots,max_FProj=bmoinsa,ficheck=FALSE, frecov=dur_Syph)
           ,silent=T)
 
+      idxMSM <-  which(tab$Data_type=="MSM")
+      idxFSW <-  which(tab$Data_type=="FSW")
+      if(length(unique(tab[idxMSM,]$Year))<2) idxMSM <- NULL
+      if(length(unique(tab[idxFSW,]$Year))<2) idxFSW <- NULL
+
+      all_estMSM <- all_estFSW <- NULL
+
       if(is.list(gmodestim0PID))
       {
         tab$estim = gmodestim0PID$funcestprojprev(scyears) #pred_glmfit(Years=tab$Year,res)
@@ -772,6 +823,34 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
         Out_syphilis$CaseInciEstF = MtoFRatio*Out_syphilis$InciEstF
         Out_syphilis$CaseInciEstM = MtoFRatio*Out_syphilis$InciEstF
         Out_syphilis$CaseInciEstMPlusF = MtoFRatio*Out_syphilis$InciEstF
+
+        ##
+        if(length(idxMSM)>=3)
+        {
+          temp_MSM <- tab[idxMSM,]
+          modMSM <- glm(Prevalence/100~Year, data=temp_MSM, family = quasibinomial(link="logit"))
+          all_estMSM$prev <- expit(coef(modMSM)[1]+coef(modMSM)[2]*(Vect_Year_Pred+amin))
+
+          Out_syphilisKPs$PrevEstMSM <- all_estMSM$prev
+        } else
+        {
+          Out_syphilisKPs$PrevEstMSM <- expit(-log(LRtoHRPOR$MtoMSM$POR) + logit(Out_syphilis$PrevEstM))
+        }
+        Out_syphilisKPs$CasePrevEstMSM <- Out_syphilisKPs$PrevEstMSM
+
+        if(length(idxFSW)>=3)
+        {
+          temp_FSW <- tab[idxFSW,]
+          modFSW <- glm(Prevalence/100~Year, data=temp_FSW, family = quasibinomial(link="logit"))
+          all_estFSW$prev <- expit(coef(modFSW)[1]+coef(modFSW)[2]*(Vect_Year_Pred+amin))
+
+          Out_syphilisKPs$PrevEstFSW <- all_estFSW$prev
+        } else
+        {
+          Out_syphilisKPs$PrevEstFSW <- expit(-log(LRtoHRPOR$FtoFSW$POR) + logit(Out_syphilis$PrevEstF))
+        }
+        Out_syphilisKPs$CasePrevEstFSW <- Out_syphilisKPs$PrevEstFSW
+
       } else
       {
         icc=icc+1;
@@ -786,6 +865,11 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
           Out_syphilis$CaseInciEstF[] = NA #
           Out_syphilis$CaseInciEstM[] = NA #
           Out_syphilis$CaseInciEstMPlusF[] = NA #
+
+          Out_syphilisKPs$PrevEstMSM[] <- NA
+          Out_syphilisKPs$CasePrevEstMSM[] <- NA
+          Out_syphilisKPs$PrevEstFSW[] <- NA
+          Out_syphilisKPs$CasePrevEstFSW[] <- NA
         }
       }#End if(is.list(gmodestim0PID))
 
@@ -836,17 +920,51 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
           zzz <-  MtoFRatio*(1+(-0.3+0.6*expit(rnorm(1))))
           resboot_SyphilisPrevM[count,] = zzz*resboot_SyphilisPrevF[count,]
           resboot_SyphilisInciM[count,] = zzz*resboot_SyphilisInciF[count,]
+
+          numrep <- length(resboot_SyphilisInciM[count,])
+
+          if(length(idxMSM)>=3)
+          {
+            temp_MSM <- tab.boot[idxMSM,]
+            temp_MSM$Prevalence <- rbinom(length(idxMSM),round(temp_MSM$N_tested),temp_MSM$Prevalence/100)/round(temp_MSM$N_tested)
+            modMSM <- glm(Prevalence~Year, data=temp_MSM, family = quasibinomial(link="logit"))
+            all_estMSM$prev <- expit(coef(modMSM)[1]+coef(modMSM)[2]*(Vect_Year_Pred+amin))
+
+            resboot_SyphilisPrevMSM[count,] <- all_estMSM$prev
+          } else
+          {
+            resboot_SyphilisPrevMSM[count,] <- expit(-log(LRtoHRPOR$MtoMSM$POR+rnorm(numrep,0,LRtoHRPOR$MtoMSM$sdlogPOR)) + logit(resboot_SyphilisPrevM[count,]))
+          }
+
+          if(length(idxFSW)>=3)
+          {
+            temp_FSW <- tab.boot[idxFSW,]
+            temp_FSW$Prevalence <- rbinom(length(idxFSW),round(temp_FSW$N_tested),temp_FSW$Prevalence/100)/round(temp_FSW$N_tested)
+            modFSW <- glm(Prevalence~Year, data=temp_FSW, family = quasibinomial(link="logit"))
+            all_estFSW$prev <- expit(coef(modFSW)[1]+coef(modFSW)[2]*(Vect_Year_Pred+amin))
+
+            resboot_SyphilisPrevFSW[count,] <- all_estFSW$prev
+          } else
+          {
+            resboot_SyphilisPrevFSW[count,] <- expit(-log(LRtoHRPOR$FtoFSW$POR+rnorm(numrep,0,LRtoHRPOR$FtoFSW$sdlogPOR)) + logit(resboot_SyphilisPrevF[count,]))
+          }
           if(count>=Nboots) break
         } #End While
 
         CI_SyphilisPrevF = apply(resboot_SyphilisPrevF,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCasePrevF = CI_SyphilisPrevF
 
+        CI_SyphilisPrevFSW = apply(resboot_SyphilisPrevFSW,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
+        CI_SyphilisCasePrevFSW = CI_SyphilisPrevFSW
+
         CI_SyphilisInciF = apply(resboot_SyphilisInciF,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCaseInciF = apply((1-resboot_SyphilisPrevF)*resboot_SyphilisInciF,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
 
         CI_SyphilisPrevM = apply(resboot_SyphilisPrevM,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCasePrevM = CI_SyphilisPrevM
+
+        CI_SyphilisPrevMSM = apply(resboot_SyphilisPrevMSM,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
+        CI_SyphilisCasePrevMSM = CI_SyphilisPrevMSM
 
         CI_SyphilisInciM = apply(resboot_SyphilisInciM,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCaseInciM = apply((1-resboot_SyphilisPrevM)*resboot_SyphilisInciM,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
@@ -855,14 +973,21 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
         popM <- unlist(PopSizeMales[PopSizeMales$ISO3==vv & !is.na(PopSizeMales$ISO3),-1]);
         popF <- unlist(PopSizeFemales[PopSizeFemales$ISO3==vv & !is.na(PopSizeFemales$ISO3),-1]);
 
+        popMSM <- unlist(PopSizeMSM_in[PopSizeMSM_in$ISO3==vv & !is.na(PopSizeMSM_in$ISO3),-1]);
+        popFSW <- unlist(PopSizeFSW_in[PopSizeFSW_in$ISO3==vv & !is.na(PopSizeFSW_in$ISO3),-1]);
+
         if(is.na(vv))
         {
           popMPlusF <- popM <- popF <- rep(NA,nrow(Out_syphilis))
+          popMSM <- popFSW <- rep(NA,nrow(Out_syphilis))
         }
 
         Out_syphilis$PopMPlusF = popMPlusF
         Out_syphilis$PopM = popM
         Out_syphilis$PopF = popF
+
+        Out_syphilisKPs$PopMSM = popMSM
+        Out_syphilisKPs$PopFSW = popFSW
 
         #Females
         Out_syphilis$PrevEstF_Med <- CI_SyphilisPrevF[2,]
@@ -882,6 +1007,16 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
         Out_syphilis$CaseIncMedF <- CI_SyphilisCaseInciF[2,]*popF
         Out_syphilis$CaseIncF_LoB <- CI_SyphilisCaseInciF[1,]*popF
         Out_syphilis$CaseIncF_UpB <- CI_SyphilisCaseInciF[3,]*popF
+
+        #FSW
+        Out_syphilisKPs$PrevEstFSW_Med <- CI_SyphilisPrevFSW[2,]
+        Out_syphilisKPs$PrevEstFSW_LoB <- CI_SyphilisPrevFSW[1,]
+        Out_syphilisKPs$PrevEstFSW_UpB <- CI_SyphilisPrevFSW[3,]
+
+        Out_syphilisKPs$CasePrevEstFSW <- Out_syphilisKPs$CasePrevEstFSW*popFSW
+        Out_syphilisKPs$CasePrevMedFSW <- CI_SyphilisCasePrevFSW[2,]*popFSW
+        Out_syphilisKPs$CasePrevFSW_LoB <- CI_SyphilisCasePrevFSW[1,]*popFSW
+        Out_syphilisKPs$CasePrevFSW_UpB <- CI_SyphilisCasePrevFSW[3,]*popFSW
         ##***************************************************
         #Males
         Out_syphilis$PrevEstM_Med <- CI_SyphilisPrevM[2,]
@@ -902,6 +1037,15 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
         Out_syphilis$CaseIncM_LoB <- CI_SyphilisCaseInciM[1,]*popM
         Out_syphilis$CaseIncM_UpB <- CI_SyphilisCaseInciM[3,]*popM
 
+        #MSM
+        Out_syphilisKPs$PrevEstMSM_Med <- CI_SyphilisPrevMSM[2,]
+        Out_syphilisKPs$PrevEstMSM_LoB <- CI_SyphilisPrevMSM[1,]
+        Out_syphilisKPs$PrevEstMSM_UpB <- CI_SyphilisPrevMSM[3,]
+
+        Out_syphilisKPs$CasePrevEstMSM <- Out_syphilisKPs$CasePrevEstMSM*popMSM
+        Out_syphilisKPs$CasePrevMedMSM <- CI_SyphilisCasePrevMSM[2,]*popMSM
+        Out_syphilisKPs$CasePrevMSM_LoB <- CI_SyphilisCasePrevMSM[1,]*popMSM
+        Out_syphilisKPs$CasePrevMSM_UpB <- CI_SyphilisCasePrevMSM[3,]*popMSM
         ##############################################################################
         #BothSexes
         Out_syphilis$CasePrevEstMPlusF <- Out_syphilis$CasePrevEstF+Out_syphilis$CasePrevEstM
@@ -962,8 +1106,13 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
         col_idx <- as.numeric(sapply(c(syph_nn1[1:16],syph_nn1[17:28],syph_nninc[1:12],syph_nninc[13:27]), function(xx) which(names(Out_syphilis)==xx)))
         Out_syphilis <- Out_syphilis[,col_idx]
 
+        Out_syphilisKPs <- Out_syphilisKPs[,c(1:4,7,11:13,5,17:19,8,14:16,6,20:22,9:10)]
+        names(Out_syphilisKPs)[1:12] <- tttKPs
+        names(Out_syphilisKPs)[13:20] <- tttElKPs
+
         infoRun = data.frame(fitted=rep("Run", nrow(Out_syphilis)), DLastRun =as.character(rep(Sys.time(),nrow(Out_syphilis))))
-        ctr_res <- list(Out_syphilis=Out_syphilis, infoRun=infoRun, CountryDataUse=CountryDataUse, CountryDataUse=CountryDataUse)
+        ctr_res <- list(Out_syphilis=Out_syphilis, infoRun=infoRun, CountryDataUse=CountryDataUse, CountryDataUse=CountryDataUse,
+                        Out_syphilisKPs=Out_syphilisKPs)
       } else
       {
         return(0)
@@ -985,18 +1134,18 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
     {
       n_row2 = 1
       nligne_decal_titre = 1
-      printed_names <- c(ttt,tttEl,tttInc,tttIncEl)
+      printed_names <- c(ttt,tttEl,tttInc,tttIncEl, names(ctr_res$Out_syphilisKPs)[-c(1:4)])
       openxlsx::writeData(wb,sheet=Syphilis_Rbootstrap,as.data.frame(matrix(printed_names,nrow=1)), startRow = n_row2, startCol = 1, colNames = FALSE, rowNames = FALSE)
     }
 
-    openxlsx::writeData(wb, sheet=Syphilis_Rbootstrap, ctr_res$Out_syphilis,colNames = FALSE,rowNames = FALSE,
-                        startRow = 1+nligne_decal_titre+nrownum, startCol = 1)
+    infoRun <- data.frame(fitted=rep("Run", nrow(ctr_res$Out_syphilis)), DLastRun =as.character(rep(Sys.time(),nrow(ctr_res$Out_syphilis))))
+    temp_data <- cbind(ctr_res$Out_syphilis, infoRun, ctr_res$Out_syphilisKPs[-c(1:4)])
+    openxlsx::writeData(wb, sheet=Syphilis_Rbootstrap, temp_data,colNames = FALSE,rowNames = FALSE,
+                        startRow = 1+nligne_decal_titre+nrownum, startCol = 1) #ctr_res$Out_syphilis
 
-    skipcol = ncol(ctr_res$Out_syphilis)+1
-    infoRun = data.frame(fitted=rep("Run", nrow(ctr_res$Out_syphilis)), DLastRun =as.character(rep(Sys.time(),nrow(ctr_res$Out_syphilis))))
-
-    openxlsx::writeData(wb, sheet=Syphilis_Rbootstrap, ctr_res$infoRun,colNames = FALSE,rowNames = FALSE,
-                        startRow = 1+nligne_decal_titre+nrownum, startCol = skipcol)
+    #skipcol = ncol(temp_data)+1#skipcol = ncol(ctr_res$Out_syphilis)+1
+    #openxlsx::writeData(wb, sheet=Syphilis_Rbootstrap, ctr_res$infoRun,colNames = FALSE,rowNames = FALSE,
+    #                    startRow = 1+nligne_decal_titre+nrownum, startCol = skipcol)
 
     nrownum = nrownum+nsep+nrow(ctr_res$Out_syphilis)
     All_CountryDataUse = rbind(All_CountryDataUse,ctr_res$CountryDataUse)
@@ -1023,18 +1172,32 @@ fCountryAnalysis_glob <- function(Nboots=1000, fname.data.file = name.data.file,
 }
 
 fCountryAnalysis_globN = function(Nboots=1000, fname.data.file = name.data.file, Fmaxknots, FB_ProjMax_F, FB_ProjMax_B,
-                                  duration.syphilis, data.syphilis, PopSizeBoth, PopSizeMen, PopSizeWomen, ISO3, year_predict, zerprev_adj=1/100, fname.data.file_OldRes=NULL,MtoFRatio=1, fautosavefile=TRUE, high_risk_adj = 1.1)
+                                  duration.syphilis, data.syphilis, PopSizeBoth, PopSizeMen, PopSizeWomen,
+                                  PopSizeMSM,PopSizeFSW,
+                                  ISO3, year_predict, zerprev_adj=1/100, fname.data.file_OldRes=NULL,MtoFRatio=1, fautosavefile=TRUE, high_risk_adj = 1.1)
 {
   #
   if(is.null(fname.data.file_OldRes))
   {
     result <- fCountryAnalysis_glob(Nboots, fname.data.file = name.data.file, Fmaxknots,FB_ProjMax_F, Fmaxknots,FB_ProjMax_B, duration.syphilis,
-                          data.syphilis, PopSizeBoth, PopSizeMen, PopSizeWomen, ISO3, year_predict, zerprev_adj,MtoFRatio, autosavefile=fautosavefile)
+                          data.syphilis, PopSizeBoth, PopSizeMen, PopSizeWomen, PopSizeMSM,PopSizeFSW, ISO3, year_predict, zerprev_adj,MtoFRatio, autosavefile=fautosavefile)
   } else
   {
-    name.out.file = paste(substr(fname.data.file,1,nchar(fname.data.file)-5),gsub("-", "", Sys.Date()),"_zAdj_", zerprev_adj,"_out.xlsx",sep="")
+    #name.out.file = paste(substr(fname.data.file,1,nchar(fname.data.file)-5),gsub("-", "", Sys.Date()),"_zAdj_", zerprev_adj,"_out.xlsx",sep="")
+    #name.out.file = substr(name.out.file,4,nchar(name.out.file))
 
-    name.out.file = substr(name.out.file,4,nchar(name.out.file))
+    name.out.file = fname.data.file
+    if(grepl("/",name.out.file))
+    {
+      nn <- max(unlist(gregexpr('/', name.out.file)))
+      name.out.file <- substr(name.out.file,nn+1, nchar(name.out.file))
+    }
+    name.out.file = paste(substr(name.out.file,1,nchar(name.out.file)-5),gsub("-", "", Sys.Date()),"_zAdj_", zerprev_adj,"_out.xlsx",sep="")
+    if(nchar(name.out.file)>218)
+    {
+      name.out.file <- substr(name.out.file,nchar(name.out.file)-217,nchar(name.out.file))
+    }
+
     #List of countries
     lcountry = levels(data.syphilis$Country)
     res.syphilis = data.frame()
@@ -1632,11 +1795,21 @@ charnumtransform <- function(x) as.numeric(gsub(",", "", as.character(x)))
 RunFitSyphilis0 <- function(name.data.file,
                             name.popu.file = NULL,
                             num_boot=400,
-                           in_Fmaxknots=2, Fin_B_ProjMax_F=3, Fin_B_ProjMax_B=3,
-                           f_high_risk_adj = 1.1,in_year_predict=1990:2023,
-                           zero_prev_adj=1/100, Sypdurs = default_syph_durations, MtoFRatio=1,
-                           FIRST_YEAR=1990, min_year_last_data=2011, list_countries=NULL,
-                           filter_survey = NULL, rautosavefile=TRUE, appendtodefaultDB=FALSE)
+                           in_Fmaxknots=2,
+                           Fin_B_ProjMax_F=3,
+                           Fin_B_ProjMax_B=3,
+                           f_high_risk_adj = 1.1,
+                           in_year_predict=1990:2023,
+                           zero_prev_adj=1/100,
+                           Sypdurs = default_syph_durations,
+                           MtoFRatio=1,
+                           f_LRtoHRPOR,
+                           FIRST_YEAR=1990,
+                           min_year_last_data=2011,
+                           list_countries=NULL,
+                           filter_survey = NULL,
+                           rautosavefile=TRUE,
+                           appendtodefaultDB=FALSE)
 {
   namesCol = c("Country","ISO3","ISO3_letters","WHO_region","Data_type","Data_type_code","Sex","Year"
                ,"Diagnostic_test","DX_Code","N_positive","N_tested","Prevalence",
@@ -1730,7 +1903,7 @@ RunFitSyphilis0 <- function(name.data.file,
   Sypdur_C = Sypdurs$Sypdur_C
 
   duration.syphilis=data.frame(t.zone=c("A","B","C"),duration=c(Sypdur_A,Sypdur_B,Sypdur_C))
-  if(!is.null(list_countries)) data.syphilis <- subset(data.syphilis, ISO3_letters%in%list_countries)
+  if(!is.null(list_countries)) data.syphilis <- subset(data.syphilis, ISO3%in%list_countries)
   if(!is.null(filter_survey)) data.syphilis <- subset(data.syphilis, Data_type%in%filter_survey)
 
   if(nrow(data.syphilis)==0)
@@ -1779,10 +1952,14 @@ RunFitSyphilis0 <- function(name.data.file,
                                  duration.syphilis, data.syphilis, PopSizeBoth=fn_PopSizeBoth,
                                  PopSizeMen=fn_PopSizeMen, PopSizeWomen=fn_PopSizeWomen, ISO3,
                                  year_predict=in_year_predict, zerprev_adj=zero_prev_adj, MtoFRatio,
+                                 LRtoHRPOR = f_LRtoHRPOR,
                                  fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile) # Running the code
   class(result) <- "Syph-fit"
   invisible(result)
 }
+
+#Default prevalence Odds Ratios for MSM and FSW
+OR_LRtoHR = list(MtoMSM = list(POR=0.9, sdlogPOR=0.1), FtoFSW=list(POR=0.9, sdlogPOR=0.1))
 
 #' A function rather aimed at developers
 #' @description A function that does blabla, blabla.
@@ -1791,11 +1968,22 @@ RunFitSyphilis0 <- function(name.data.file,
 RunFitSyphilis1 <- function(name.data.file,
                             name.popu.file = NULL,
                             num_boot=400,
-                            in_Fmaxknots=2, Fin_B_ProjMax_F=3, Fin_B_ProjMax_B=3,
-                            f_high_risk_adj = 1.1,in_year_predict=1990:2023,
-                            zero_prev_adj=1/100, Sypdurs = default_syph_durations, MtoFRatio=1,
-                            FIRST_YEAR=1990, min_year_last_data=2011, list_countries=NULL,
-                            filter_survey = NULL, rautosavefile=TRUE, appendtodefaultDB=FALSE)
+                            in_Fmaxknots=2,
+                            Fin_B_ProjMax_F=3,
+                            Fin_B_ProjMax_B=3,
+                            f_high_risk_adj = 1.1,
+                            in_year_predict=1990:2023,
+                            zero_prev_adj=1/100,
+                            Sypdurs = default_syph_durations,
+                            DiagnosticTest = Default_DiagnosticTest,
+                            MtoFRatio = 1,
+                            f_LRtoHRPOR = OR_LRtoHR,
+                            FIRST_YEAR=1990,
+                            min_year_last_data=2011,
+                            list_countries=NULL,
+                            filter_survey = NULL,
+                            rautosavefile=TRUE,
+                            appendtodefaultDB=FALSE)
 {
 
   namesCol = c("Country","ISO3" ,"ISO3_letters", "WHO_region","Data_type", "Population_code", "Sex", "Year", "DX_Code",
@@ -1805,8 +1993,20 @@ RunFitSyphilis1 <- function(name.data.file,
 
   high_risk_adj = f_high_risk_adj;
 
-  SyphData <- openxlsx::read.xlsx(name.data.file,sheet="Data Entry", startRow=1,
-                                  cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  shna <- openxlsx::sheets(openxlsx::loadWorkbook(name.data.file))
+
+  if(is.element("Data Entry",shna))
+  {
+    SyphData <- openxlsx::read.xlsx(name.data.file,sheet="Data Entry", startRow=1,
+                                    cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  } else if (is.element("Combined",shna))
+  {
+    SyphData <- openxlsx::read.xlsx(name.data.file,sheet="Combined", startRow=1,
+                                    cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  }else
+  {
+    stop("The data entry form does not seem have correct sheet names (either Data Entry or Combined) please check")
+  }
 
   names(SyphData)[names(SyphData)=="Weight"] <- "Weight_for_Spectrum_fitting"
   names(SyphData)[names(SyphData)=="Midpoint study year"] <- "Year"
@@ -1819,7 +2019,8 @@ RunFitSyphilis1 <- function(name.data.file,
 
   SyphData$"Data type" <- sapply(SyphData$"Data type, code", function(xx){
     res <- "Other"
-    if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening"
+    #if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening"
+    if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening" else if (xx==9) res = "FSW" else if (xx%in%c(11,12)) res = "MSM"
     res
   })
 
@@ -1847,7 +2048,6 @@ RunFitSyphilis1 <- function(name.data.file,
 
   SyphData$DX_Code[is.na(SyphData$DX_Code)] <- 1
   SyphData <- subset(SyphData,!is.na(SyphData$`N tested`) & SyphData$`N tested`>0)
-  DiagnosticTest <- Default_DiagnosticTest
 
   LowRisk <- c("ANC Routine screening","ANC Survey", "BloodDonor Screening Men", "Survey LowRisk Men", "BloodDonor Screening Men + Women",
                "Survey LowRisk Men+Women", "Survey LowRisk Women", "BloodDonor Screening Women")
@@ -1857,7 +2057,7 @@ RunFitSyphilis1 <- function(name.data.file,
     if(!is.na(SyphData$DX_Code[ii]))
     {
       hr_adj <- ifelse(any(LowRisk==SyphData$'Data type'[ii]),high_risk_adj,1);
-      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
       res = SyphData$Prevalence[ii]*adj*hr_adj
     }
     res
@@ -1910,11 +2110,15 @@ RunFitSyphilis1 <- function(name.data.file,
   if(nrow(data.syphilis)==0)
   {
     warnings("No country seclected. Please check the countries names or Data type.")
+    return(NULL)
   }
 
   fn_PopSizeBoth=Default_PopSize_20230902;
   fn_PopSizeMen=Default_PopSizeMales_20230902;
   fn_PopSizeWomen=Default_PopFemales_20230902
+
+  fn_PopSizeMSM = Default_PopSizeMSM_20230902
+  fn_PopSizeFSW = Default_PopFSW_20230902
 
   if(!is.null(name.popu.file))
   {
@@ -1938,6 +2142,20 @@ RunFitSyphilis1 <- function(name.data.file,
     {
       fn_PopSizeWomen[,ii] <- as.numeric(as.character(fn_PopSizeWomen[,ii]))
     }
+
+    fn_PopSizeMSM= openxlsx::read.xlsx(name.popu.file,sheet="MSM",startRow=2, cols=c(3,8:43),colNames=FALSE)
+    colnames(fn_PopSizeMSM) =  c("ISO3", paste("Year_", 1990+(0:(ncol(fn_PopSizeMSM)-2)),sep=""))
+    for(ii in 2:ncol(fn_PopSizeMSM))
+    {
+      fn_PopSizeMSM[,ii] <- as.numeric(as.character(fn_PopSizeMSM[,ii]))
+    }
+
+    fn_PopSizeFSW= openxlsx::read.xlsx(name.popu.file,sheet="FSW",startRow=2, cols=c(3,8:43),colNames=FALSE)
+    colnames(fn_PopSizeFSW) =  c("ISO3", paste("Year_", 1990+(0:(ncol(fn_PopSizeFSW)-2)),sep=""))
+    for(ii in 2:ncol(fn_PopSizeFSW))
+    {
+      fn_PopSizeFSW[,ii] <- as.numeric(as.character(fn_PopSizeFSW[,ii]))
+    }
   }
 
   nnames_popsizes <- c("ISO3", paste("Year_", in_year_predict, sep=""))
@@ -1945,14 +2163,19 @@ RunFitSyphilis1 <- function(name.data.file,
   fn_PopSizeMen <- fn_PopSizeMen[,colnames(fn_PopSizeMen)%in%nnames_popsizes]
   fn_PopSizeWomen <- fn_PopSizeWomen[,colnames(fn_PopSizeWomen)%in%nnames_popsizes]
 
+  fn_PopSizeMSM <- fn_PopSizeMSM[,colnames(fn_PopSizeMSM)%in%nnames_popsizes]
+  fn_PopSizeFSW <- fn_PopSizeFSW[,colnames(fn_PopSizeFSW)%in%nnames_popsizes]
+
   if(ncol(fn_PopSizeBoth)!=length(nnames_popsizes)) stop("Population size data incompatible. The model is not allowed to predict before 1990 or beyond 2025")
 
   # Loading functions
   result = fCountryAnalysis_glob(Nboots=num_boot, fname.data.file = name.data.file, Fmaxknots=in_Fmaxknots,
                                  FB_ProjMax_F=Fin_B_ProjMax_F, FB_ProjMax_B=Fin_B_ProjMax_B,
                                  duration.syphilis, data.syphilis, PopSizeBoth=fn_PopSizeBoth,
-                                 PopSizeMen=fn_PopSizeMen, PopSizeWomen=fn_PopSizeWomen, ISO3,
+                                 PopSizeMen=fn_PopSizeMen, PopSizeWomen=fn_PopSizeWomen, PopSizeMSM=fn_PopSizeMSM,
+                                 PopSizeFSW  =fn_PopSizeFSW, ISO3,
                                  year_predict=in_year_predict, zerprev_adj=zero_prev_adj, MtoFRatio,
+                                 LRtoHRPOR = f_LRtoHRPOR,
                                  fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile) # Running the code
   class(result) <- "Syph-fit"
   invisible(result)
@@ -1970,7 +2193,9 @@ RunFitSyphilis1 <- function(name.data.file,
 #' @param in_year_predict sequence of years incidence and prevalence should be projected. This is set to 1990 to 2023 by default.
 #' @param zero_prev_adj non-zero real number in the range 0 to 1, to adjust for zero prevalence in the data set. The default value is 1/100
 #' @param Sypdurs list of three non negative real numbers representing Syphilis durations for three regions of the world. The default value for this is default_syph_durations = list(Sypdur_A=1.28, Sypdur_B=2.42, Sypdur_C=4.13)
+#' @param f_DiagTestParam Data frame containing diagnostic parameters. The default can be obtained using the function get_DefaultDiagTests()
 #' @param MtoFRatio non-zero real number representing an estimate of the male to female ratio. This is one by default.
+#' @param LRtoHRPOR list containing Prevalence Odds Ratios for estimating prevalence among MSM and FSW. The default parameter can be obtained by typing get_DefaultPOR() in the console.
 #' @param FIRST_YEAR non-zero real number indicating the earliest year for projections to start. This is 1990 by default.
 #' @param min_year_last_data non-zero real number indicating the earliest year for data to be used. This is 2011 by default.
 #' @param list_countries Vector with (alpha) ISO3 codes of countries estimates are to be obtained.
@@ -1981,20 +2206,33 @@ RunFitSyphilis1 <- function(name.data.file,
 RunFitSyphilis <- function(name.data.file,
                            name.popu.file = NULL,
                             num_boot=400,
-                            in_Fmaxknots=2, Fin_B_ProjMax_F=3, Fin_B_ProjMax_B=3,
-                            f_high_risk_adj = 1.1, in_year_predict=1990:2023,
-                            zero_prev_adj=1/100, Sypdurs = default_syph_durations, MtoFRatio=1,
-                            FIRST_YEAR=1990, min_year_last_data=2011, list_countries=NULL,
-                            filter_survey = NULL, f_autosavefile=TRUE)
+                            in_Fmaxknots=2,
+                           Fin_B_ProjMax_F=3,
+                           Fin_B_ProjMax_B=3,
+                            f_high_risk_adj = 1.1,
+                           in_year_predict=1990:2023,
+                            zero_prev_adj=1/100,
+                            Sypdurs = default_syph_durations,
+                            f_DiagnosticTest = Default_DiagnosticTest,
+                            MtoFRatio=1,
+                            LRtoHRPOR = OR_LRtoHR,
+                            FIRST_YEAR=1990,
+                           min_year_last_data=2011,
+                           list_countries=NULL,
+                            filter_survey = NULL,
+                           f_autosavefile=TRUE)
 {
   tempsheets <- openxlsx::sheets(openxlsx::loadWorkbook(name.data.file))
   result <- NULL
-  if(is.element("Data Entry",tempsheets))
+  if((is.element("Data Entry",tempsheets)) | (is.element("Combined",tempsheets)))
   {
     result <- RunFitSyphilis1(name.data.file, name.popu.file, num_boot,
                              in_Fmaxknots, Fin_B_ProjMax_F, Fin_B_ProjMax_B,
                              f_high_risk_adj,in_year_predict,
-                             zero_prev_adj, Sypdurs, MtoFRatio,
+                             zero_prev_adj, Sypdurs,
+                             f_DiagnosticTest,
+                             MtoFRatio,
+                             f_LRtoHRPOR = LRtoHRPOR,
                              FIRST_YEAR, min_year_last_data, list_countries,
                              filter_survey, rautosavefile=f_autosavefile)
   } else if(is.element("SyphData",tempsheets))
@@ -2062,7 +2300,7 @@ GetTemplateSyphData <-  function(ctr_iso3=NULL)
 #' @param proj_years integer vector of years for which estimates and projections are to be made. By default, this is the sequence 1990:2025
 #' @param min_year non-zero real number indicating the earliest year for data to be used. This is 2011 by default.
 #' @param rSyph_preg Ratio of Syphilis prevalence among all women to prevalence among pregnant women. This is 1 by default.
-#' @param CSinputfiles list of four file names for (1) prevalence: syphilis prevalence used for prevalence estimates, (2) screening: data for Syphilis screen among pregnant women, (3) csdb: congenital syphilis prevalence, and (4) allbirths: all births by country. By default, this is set to NULL, which means data 2023 default data bases are used.
+#' @param CSinputfiles list of four file names for (1) prevalence: syphilis prevalence used for prevalence estimates, (2) screening: data for Syphilis screen among pregnant women, (3) csdb: congenital syphilis prevalence, and (4) demographics: all demographic data by country. By default, this is set to NULL, which means data 2023 default data bases are used.
 #' @return A list of class "CSProj", of dataframes CongenDataOut, LongCongenDataOutForPlots, RegCSABO, LongRegCSABO, RegDataPrevInc, LongRegDataPrevIncForPlots containing national and regional congenital Syphilis estimates.
 #' @examples Not available
 #' @keywords internal
@@ -2880,7 +3118,7 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
   ###############################################################################
   ###############################################################################
   RegCSABO <- data.frame()
-  if(!is.null(list_countries))
+  if(is.null(list_countries))
   {
     for(reg in unique(CongenDataOut$SDG_Region))
     {
@@ -3380,6 +3618,8 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
   results$RegDataPrevInc <- RegDataPrevInc
   results$LongRegDataPrevIncForPlots <- LongRegDataPrevIncForPlots
   results$all_iso = all_countries_iso
+  results$CongenDataIn <- CongenDataIn
+  results$CongenDataRaw <- CongenDataRaw
 
   wb <- openxlsx::createWorkbook()
   nnames <- c("CS Estimates", "CS Estimates long format", "Regional CS ABO", "Regional CS ABO long",
@@ -3394,1311 +3634,6 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
   results$wb <- wb
   class(results) <- "CSProj"
   return(results)
-  # if(!is.null(CSinputfiles))
-  # {
-  #   pre_res_0 <- get_precalcsCS(CSinputfiles)
-  #   CongenDataIn <- pre_res_0$CongenDataIn
-  #   SDGRegions <- pre_res_0$SDGRegions
-  #   RiskABO_Asumptions <- pre_res_0$RiskABO_Asumptions
-  #   LongEarlyANCData <- pre_res_0$LongEarlyANCData
-  #   SE_Asumptions <- pre_res_0$SE_Asumptions
-  #   TimingANC_Asumptions <- pre_res_0$TimingANC_Asumptions
-  #   EarlyANC <- pre_res_0$EarlyANC
-  #   fn_impute <- pre_res_0$fn_impute
-  #   rm(pre_res_0)
-  #
-  #   pre_res_1 <- get_rawCS(CSinputfiles)
-  #   CongenDataRaw <- pre_res_1$CongenDataRaw
-  #   SyphDataRaw <- pre_res_1$SyphDataRaw
-  #   rm(pre_res_1)
-  # }
-  #
-  # fittedprevIncfile <- syphfitfile
-  # IncideAndPrevalence <- openxlsx::read.xlsx(fittedprevIncfile, sheet="SYPH_RBootstrap_All")
-  # names(IncideAndPrevalence)[names(IncideAndPrevalence)=="WHO_Region"] <- "WHO Region"
-  # prevdata <- SyphDataRaw
-  #
-  # ctr_with_good_data <- c()
-  # for(ctr_iso in unique(prevdata$ISO3_letters))
-  # {
-  #   temp_ctr_data <- subset(prevdata,ISO3_letters==ctr_iso & prevdata$Year>=min_year)
-  #   if(nrow(temp_ctr_data)>=1)
-  #   {
-  #     ctr_with_good_data <- c(ctr_with_good_data,ctr_iso)
-  #   }
-  # }
-  #
-  # IncideAndPrevalence <- subset(IncideAndPrevalence,ISO3%in%ctr_with_good_data)
-  #
-  # IncideAndPrevalence$SDG_Region <- sapply(IncideAndPrevalence$ISO3, function(x)
-  # {
-  #   res <- NA
-  #   idx <- which(SDGRegions$COUNTRY_CODE==x)
-  #   if(length(idx)>=1) res <- SDGRegions$'SDG Regions'[idx[1]]
-  #   res
-  # })
-  #
-  # all_countries_iso <- unique(CongenDataIn$`ISO code`)
-  #
-  # if(!is.null(list_countries))
-  # {
-  #   #nnctr <- unique(CongenDataIn$Country[is.element(CongenDataIn$Country,list_countries)])
-  #   #all_countries_iso <- unique(CongenDataIn$`ISO code`[is.element(CongenDataIn$Country,nnctr)])
-  #   all_countries_iso <- unique(CongenDataIn$`ISO code`[is.element(CongenDataIn$Country,list_countries)])
-  # }
-  # results <- list()
-  #
-  # CongenDataOut <- data.frame();
-  # for(isoctr in all_countries_iso)
-  # {
-  #   temp_ctr <- lapply(proj_years, function(xx){
-  #     res <- CongenDataIn[1,];
-  #     res[1,] <- NA
-  #     idxyy <- which(CongenDataIn$`ISO code`==isoctr& CongenDataIn$Year==xx)
-  #     if(length(idxyy)>=1)
-  #     {
-  #       res <- CongenDataIn[idxyy[1],]
-  #     } else
-  #     {
-  #       idx_ctr <- which(CongenDataIn$`ISO code`==isoctr)
-  #       res$Year = xx
-  #       res$Country = CongenDataIn$Country[idx_ctr[1]];
-  #       res$`ISO code` = CongenDataIn$`ISO code`[idx_ctr[1]];
-  #       res$`ISO3nmb` = CongenDataIn$`ISO3nmb`[idx_ctr[1]];
-  #       res$`WHO Region` = CongenDataIn$`WHO Region`[idx_ctr[1]];
-  #     }
-  #     res
-  #   })
-  #
-  #   nn <- names(CongenDataIn[1,])
-  #   temp_ctr <- plyr::ldply (temp_ctr, data.frame)
-  #   names(temp_ctr) <- nn
-  #   #
-  #   temp_ctr_prev <- lapply(proj_years, function(xx){
-  #     idxyy <- which(IncideAndPrevalence$ISO3==isoctr& IncideAndPrevalence$Year==xx)
-  #     tncol <- ncol(IncideAndPrevalence)-4
-  #     res <- IncideAndPrevalence[1,-c(1:4)]
-  #     res[1,] <- NA
-  #     if(length(idxyy)>=1)
-  #     {
-  #       res <- IncideAndPrevalence[idxyy[1],-c(1:4)]
-  #     }
-  #     res
-  #   })
-  #
-  #   nn <- names(IncideAndPrevalence[1,-c(1:4)])
-  #   temp_ctr_prev <- plyr::ldply (temp_ctr_prev, data.frame)
-  #   names(temp_ctr_prev) <- nn
-  #
-  #   if(nrow(temp_ctr_prev)>=1) temp_ctr <- cbind(temp_ctr,temp_ctr_prev)
-  #
-  #   #SpectrumBirths
-  #   temp_ctr$EstimatePrevF <- fn_impute('EstimatePrevF',temp_ctr,IncideAndPrevalence)
-  #   temp_ctr$'PrevLB_2.5%F' <- fn_impute('PrevLB_2.5%F',temp_ctr,IncideAndPrevalence)
-  #   temp_ctr$'PrevUB_97.5%F' <- fn_impute('PrevUB_97.5%F',temp_ctr,IncideAndPrevalence)
-  #
-  #   for(ii in seq_len(length(temp_ctr$'PrevUB_97.5%F')))
-  #   {
-  #     if(is.na(temp_ctr$'PrevUB_97.5%F'[ii]) | is.na(temp_ctr$EstimatePrevF[ii])) next
-  #     if(temp_ctr$'PrevUB_97.5%F'[ii] < temp_ctr$EstimatePrevF[ii])
-  #     {
-  #       temp_ctr$'PrevUB_97.5%F'[ii] <- temp_ctr$EstimatePrevF[ii]+1.96*sqrt(temp_ctr$EstimatePrevF[ii]/4)
-  #       temp_ctr$'PrevLB_2.5%F'[ii] <- max(0,temp_ctr$EstimatePrevF[ii]-1.96*sqrt(temp_ctr$EstimatePrevF[ii]/4))
-  #     }
-  #   }
-  #
-  #   #Adult prevalence
-  #   temp_ctr$'Adult prev. USED -- Spectrum or other' <- temp_ctr$EstimatePrevF#/rSyph_preg;
-  #   temp_ctr$'LB, Adult prev. USED -- Spectrum or other' <- temp_ctr$`PrevLB_2.5%F`#/rSyph_preg;
-  #   temp_ctr$'UB, Adult prev. USED -- Spectrum or other' <- temp_ctr$`PrevUB_97.5%F`#/rSyph_preg;
-  #
-  #   #Prevalence among pregnant women
-  #   temp_ctr$'Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)' <- temp_ctr$EstimatePrevF/rSyph_preg;
-  #   temp_ctr$'LB on maternal prevalence, incl. Imputed' <- temp_ctr$`PrevLB_2.5%F`/rSyph_preg;
-  #   temp_ctr$'UB on maternal prevalence, incl. Imputed' <- temp_ctr$`PrevUB_97.5%F`/rSyph_preg;
-  #
-  #   temp_ctr$'Treated (%)' <- fn_impute('Treated (%)',temp_ctr,CongenDataIn)
-  #   temp_ctr$'Syphilis-tested (1st ANC, %)' <- fn_impute('Syphilis-tested (1st ANC, %)',temp_ctr,CongenDataIn)
-  #   temp_ctr$'Women with >= 1 ANC visit (%)' <- fn_impute('Women with >= 1 ANC visit (%)',temp_ctr,CongenDataIn)
-  #
-  #   #Syphilis-infected pregnancies
-  #   temp_ctr$'Syphilis-infected pregnancies' <- temp_ctr$'Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)'*temp_ctr$Pregnancies;
-  #   temp_ctr$'Treated mothers' <- temp_ctr$`Treated (%)`/100*temp_ctr$'Syphilis-tested (1st ANC, %)'/100*temp_ctr$`Women with >= 1 ANC visit (%)`/100;
-  #   temp_ctr$'Untreated mothers' <- 1-temp_ctr$'Treated mothers';
-  #
-  #   idx_risk_untrea <- which(RiskABO_Asumptions[,1]=="Risk, from UNTREATED maternal syphilis")
-  #   idx_risk_trea <- which(RiskABO_Asumptions[,1]=="Risk, from TREATED maternal syphilis")
-  #
-  #   temp_ctr$'ABO cases (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$'Untreated mothers'*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]+temp_ctr$'Treated mothers'*RiskABO_Asumptions$`All outcomes`[idx_risk_trea])
-  #
-  #   temp_ctr$'CS cases (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$'Untreated mothers'+temp_ctr$'Treated mothers'*RiskABO_Asumptions$`All outcomes`[idx_risk_trea])
-  #
-  #   temp_ctr$'ABO, not seen in ANC (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (1-temp_ctr$`Women with >= 1 ANC visit (%)`/100)*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]
-  #
-  #   temp_ctr$'ABO, ANC women not screened (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (1-temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]
-  #
-  #   temp_ctr$'ABO, ANC-screened women not treated (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100*temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*(1-temp_ctr$`Treated (%)`/100)*
-  #     RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]
-  #
-  #   temp_ctr$'ABO = CS, ANC women treated (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100*temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*temp_ctr$`Treated (%)`/100*
-  #     RiskABO_Asumptions$`All outcomes`[idx_risk_trea]
-  #
-  #   temp_ctr$'CS cases, not seen in ANC (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (1-temp_ctr$`Women with >= 1 ANC visit (%)`/100)
-  #
-  #   temp_ctr$'CS cases, ANC women not screened (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100)*(1-temp_ctr$`Syphilis-tested (1st ANC, %)`/100)
-  #
-  #   temp_ctr$'CS cases, ANC-screened women not treated (2012 method)' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100)*temp_ctr$`Syphilis-tested (1st ANC, %)`/100*(1-temp_ctr$`Treated (%)`/100)
-  #
-  #   dftt <- subset(LongEarlyANCData,ISO3==isoctr & LongEarlyANCData$`Start year`%in%proj_years)
-  #   aborisktreated <- rep(0, nrow(temp_ctr))
-  #   if(nrow(dftt)==0)
-  #   {
-  #     dftt_temp <- subset(LongEarlyANCData,SDG_Region== temp_ctr$SDG_Region[1])
-  #     aborisktreated <- sapply(unique(temp_ctr$Year), function(xx){
-  #       tresu <- 0;
-  #       rr <- dftt_temp$`ABO risk, average, treated women`[dftt_temp$`Start year`==xx]
-  #       if(length(rr)>=1) tresu <- mean(rr,na.rm=T)
-  #       tresu
-  #     } )
-  #   }else
-  #   {
-  #     aborisktreated <- dftt$`ABO risk, average, treated women`
-  #   }
-  #
-  #   temp_ctr$'ABO cases' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Untreated mothers`*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]+temp_ctr$`Treated mothers`*aborisktreated)
-  #
-  #   temp_ctr$'CS cases' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Untreated mothers`+temp_ctr$`Treated mothers`*aborisktreated)
-  #
-  #   temp_ctr$'ABO, not seen in ANC' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (1-temp_ctr$`Women with >= 1 ANC visit (%)`/100)*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]
-  #
-  #   temp_ctr$'ABO, ANC women not screened' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100)*(1-temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]
-  #
-  #   temp_ctr$'ABO, ANC-screened women not treated' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100)*(temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*(1-temp_ctr$`Treated (%)`/100)*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]
-  #
-  #   temp_ctr$'ABO = CS, ANC women treated' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100)*(temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*(temp_ctr$`Treated (%)`/100)*aborisktreated
-  #
-  #   temp_ctr$'CS cases, not seen in ANC' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (1-temp_ctr$`Women with >= 1 ANC visit (%)`/100)
-  #
-  #   temp_ctr$'CS cases, ANC women not screened' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100)*(1-temp_ctr$`Syphilis-tested (1st ANC, %)`/100)
-  #
-  #   temp_ctr$'CS cases, ANC-screened women not treated' = temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*
-  #     (temp_ctr$`Women with >= 1 ANC visit (%)`/100)*(temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*(1-temp_ctr$`Treated (%)`/100)
-  #
-  #   temp_ctr$'CS / 100,000 live births' = temp_ctr$'CS cases'/temp_ctr$`Live Births`*100000;
-  #
-  #   temp_ctr$'CS / 100,000, 2012, for RANK' = ifelse(temp_ctr$Year==2012,temp_ctr$'CS / 100,000 live births',NA)
-  #
-  #   temp_ctr$'CS / 100,000, 2016, for RANK' = ifelse(temp_ctr$Year==2016,temp_ctr$'CS / 100,000 live births',NA)
-  #
-  #   temp_ctr$'CS report completeness' = ifelse(!is.na(temp_ctr$`Congenital syphilis case REPORTS`),temp_ctr$`Congenital syphilis case REPORTS`/temp_ctr$`CS case report rate`,NA)
-  #
-  #   temp_ctr$'ABO/100,000 live births' = temp_ctr$`ABO cases (2012 method)`/temp_ctr$`Live Births`*100000;
-  #
-  #   temp_ctr$'ABO risk, treated mothers' = aborisktreated;
-  #   temp_ctr$'Pregnancies, 2008' = ifelse(temp_ctr$Year==2008,temp_ctr$Pregnancies,NA);
-  #   temp_ctr$'Pregnancies, 2012' = ifelse(temp_ctr$Year==2012,temp_ctr$Pregnancies,NA);
-  #   temp_ctr$'Pregnancies, 2016' = ifelse(temp_ctr$Year==2016,temp_ctr$Pregnancies,NA);
-  #   temp_ctr$'Pregnancies, 2020' = ifelse(temp_ctr$Year==2020,temp_ctr$Pregnancies,NA);
-  #
-  #   temp_ctr$'ANC-1, imputed?' = NA;
-  #   temp_ctr$'Screen cov, imputed?' = NA;
-  #   temp_ctr$'Maternal prevalence, imputed?' = NA;
-  #
-  #   temp_ctr$'3 ANC service coverages national?' = NA;
-  #   temp_ctr$'Spectrum trend & national 3 ANC coverages Y=1' = NA;
-  #
-  #   temp_ctr$'Liveborn with clinical CS' = temp_ctr$'ABO cases'*RiskABO_Asumptions$`CS, risk: liveborn`[idx_risk_untrea]/RiskABO_Asumptions$`treated mothers`[idx_risk_untrea];
-  #   temp_ctr$'Prematurity or LBW due to CS' = temp_ctr$'ABO cases'*RiskABO_Asumptions$`CS risk: prematurity or LBW`[idx_risk_untrea]/RiskABO_Asumptions$`treated mothers`[idx_risk_untrea];
-  #   temp_ctr$'Neonatal death due to CS' = temp_ctr$'ABO cases'*RiskABO_Asumptions$`CS risk: neonatal death`[idx_risk_untrea]/RiskABO_Asumptions$`treated mothers`[idx_risk_untrea];
-  #   temp_ctr$'Stillbirth due to CS' = temp_ctr$'ABO cases'*RiskABO_Asumptions$`CS risk: stillbirth`[idx_risk_untrea]/RiskABO_Asumptions$`treated mothers`[idx_risk_untrea];
-  #   temp_ctr$'Asymptomatic CS' = temp_ctr$'CS cases'-temp_ctr$'ABO cases';
-  #   temp_ctr$'Asymptomatic, mother diagnosed' = NA;
-  #   temp_ctr$'Asymptomatic, mother NOT diagnosed' = NA;
-  #
-  #   temp_ctr$'EMTCT elimination certification country?' = NA;
-  #   temp_ctr$'CS case report rate (incl. Imputations as 0.3 cases for reported 0s), Elimination countries' = NA;
-  #   temp_ctr$'ABO = CS, ANC women treated, ELIM.CIES only' = NA;
-  #   temp_ctr$'CS cases, not seen in ANC, ELIM.CIESonly' = NA;
-  #   temp_ctr$'CS cases, ANC women not screened, ELIM.CIESonly' = NA;
-  #   temp_ctr$'CS cases, ANC-screened women not treated, ELIM.CIESonly' = NA;
-  #
-  #   temp_ctr$'Graph labels' = NA;
-  #   temp_ctr$'Maternal duration of infection' = 2.4;
-  #   temp_ctr$'Maternal incidence/person-year' = temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`/temp_ctr$'Maternal duration of infection';
-  #
-  #   timefirstanc <- rep(0, nrow(temp_ctr))
-  #   if(nrow(dftt)==0)
-  #   {
-  #     #dftt_temp <- subset(LongEarlyANCData,Region==paste(temp_ctr$`WHO Region`[1],"O",sep=""))
-  #     dftt_temp <- subset(LongEarlyANCData,SDG_Region==temp_ctr$SDG_Region[1])
-  #     timefirstanc <- sapply(unique(temp_ctr$Year), function(xx){
-  #       tresu <- 0;
-  #       rr <- dftt_temp$`Time of first ANC, national average`[dftt$`Start year`==xx]
-  #       if(length(rr)>=1) tresu <- mean(rr,na.rm=T)
-  #       tresu
-  #     } )
-  #   }else
-  #   {
-  #     timefirstanc <- dftt$`Time of first ANC, national average`
-  #   }
-  #   temp_ctr$'Additional maternal infections, from reinfection after treatment' = (40-timefirstanc)/52*temp_ctr$'Maternal incidence/person-year'*temp_ctr$'ABO = CS, ANC women treated';
-  #
-  #   temp_ctr$'Relative increase in CS, from reinfection' = temp_ctr$'Additional maternal infections, from reinfection after treatment'/temp_ctr$'CS cases';
-  #   temp_ctr$'Variance on adult (not only ANC) prevalence' = ((temp_ctr$`PrevUB_97.5%M+F`-temp_ctr$`PrevLB_2.5%M+F`)/2/1.96)^2;
-  #   temp_ctr$'Variance on MATERNAL prevalence' = ((temp_ctr$`UB on maternal prevalence, incl. Imputed`-temp_ctr$`LB on maternal prevalence, incl. Imputed`)/2/1.96)^2;
-  #
-  #   temp_ctr$'Variance on maternal prevalence * Pregnancies^2' = temp_ctr$'Variance on MATERNAL prevalence'*temp_ctr$Pregnancies^2
-  #   temp_ctr$'Variance on # pregnancies' = 0
-  #
-  #   temp_ctr$'Variance on ABO prob. For treated mothers' = ((temp_ctr$'ABO risk, treated mothers'*.5)/2/1.9)^2
-  #
-  #   temp_ctr$'LB on ANC-1 coverage' = temp_ctr$`Women with >= 1 ANC visit (%)`/100-(1-temp_ctr$`Women with >= 1 ANC visit (%)`/100)*SE_Asumptions$`Lower-bound`[SE_Asumptions$X1=="ANC-1 coverage"]
-  #   temp_ctr$'UB on ANC-1 coverage' = temp_ctr$`Women with >= 1 ANC visit (%)`/100-(1-temp_ctr$`Women with >= 1 ANC visit (%)`/100)*SE_Asumptions$`Upper-bound`[SE_Asumptions$X1=="ANC-1 coverage"]
-  #
-  #   temp_ctr$'Variance on ANC-1 coverage' = ((temp_ctr$'UB on ANC-1 coverage'-temp_ctr$'LB on ANC-1 coverage')/2/1.96)^2
-  #
-  #   temp_ctr$'LB on screen coverage' = temp_ctr$`Syphilis-tested (1st ANC, %)`/100-(1-temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*SE_Asumptions$`Lower-bound`[SE_Asumptions$X1=="Screening coverage"]
-  #   temp_ctr$'UB on screen coverage' = temp_ctr$`Syphilis-tested (1st ANC, %)`/100-(1-temp_ctr$`Syphilis-tested (1st ANC, %)`/100)*SE_Asumptions$`Upper-bound`[SE_Asumptions$X1=="Screening coverage"]
-  #   temp_ctr$'Variance on Screen coverage' = ((temp_ctr$'LB on screen coverage'-temp_ctr$'UB on screen coverage')/2/1.96)^2
-  #
-  #   temp_ctr$'LB on Treat coverage' = temp_ctr$`Treated (%)`/100-(1-temp_ctr$`Treated (%)`/100)*SE_Asumptions$`Lower-bound`[SE_Asumptions$X1=="Treatment coverage"]
-  #   temp_ctr$'UB on Treat coverage' = temp_ctr$`Treated (%)`/100-(1-temp_ctr$`Treated (%)`/100)*SE_Asumptions$`Upper-bound`[SE_Asumptions$X1=="Treatment coverage"]
-  #   temp_ctr$'Variance on Treat coverage' = ((temp_ctr$'LB on Treat coverage'-temp_ctr$'UB on Treat coverage')/2/1.96)^2
-  #
-  #   temp_ctr$'Variance on % of mothers treated, or untreated' = (temp_ctr$`Women with >= 1 ANC visit (%)`/100)^2*temp_ctr$'Variance on ANC-1 coverage' +
-  #     (temp_ctr$`Syphilis-tested (1st ANC, %)`/100)^2*temp_ctr$'Variance on Screen coverage' + (temp_ctr$`Treated (%)`/100)^2*temp_ctr$'Variance on Treat coverage'
-  #
-  #   temp_ctr$'Variance on CS case number' = ((temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*(temp_ctr$`Untreated mothers`+temp_ctr$`Treated mothers`*temp_ctr$`ABO risk, treated mothers`))^2)*
-  #     temp_ctr$`Variance on # pregnancies`+
-  #     ((temp_ctr$Pregnancies*(temp_ctr$`Untreated mothers`+temp_ctr$`Treated mothers`*temp_ctr$`ABO risk, treated mothers`))^2)*temp_ctr$`Variance on MATERNAL prevalence`+
-  #     ((temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`)^2)*temp_ctr$`Variance on % of mothers treated, or untreated`+
-  #     ((temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*temp_ctr$`ABO risk, treated mothers`)^2)*temp_ctr$`Variance on % of mothers treated, or untreated`+
-  #     ((temp_ctr$`Untreated mothers`*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`)^2)*temp_ctr$`Variance on ABO prob. For treated mothers`
-  #
-  #   temp_ctr$'Square of Variance on CS case number' = temp_ctr$'Variance on CS case number'^2
-  #
-  #   temp_ctr$'SE on CS case number' = sqrt(temp_ctr$'Variance on CS case number')
-  #
-  #   temp_ctr$'Variance on ABO case number' = ((temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*(temp_ctr$`Untreated mothers`*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]+temp_ctr$`Treated mothers`*temp_ctr$`ABO risk, treated mothers`))^2)*temp_ctr$`Variance on # pregnancies`+
-  #     ((temp_ctr$Pregnancies*(temp_ctr$`Untreated mothers`*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea]+temp_ctr$`Treated mothers`*temp_ctr$`ABO risk, treated mothers`))^2)*temp_ctr$`Variance on MATERNAL prevalence`+
-  #     ((temp_ctr$Pregnancies*temp_ctr$'Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)'*temp_ctr$'Untreated mothers')^2)*RiskABO_Asumptions$'Variance on ABO risk assumption'[idx_risk_untrea]+
-  #     ((temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*RiskABO_Asumptions$`All outcomes`[idx_risk_untrea])^2)*temp_ctr$`Variance on % of mothers treated, or untreated`+
-  #     ((temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*temp_ctr$`Treated mothers`)^2*temp_ctr$`Variance on ABO prob. For treated mothers`)+
-  #     ((temp_ctr$Pregnancies*temp_ctr$`Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)`*temp_ctr$`ABO risk, treated mothers`)^2)*temp_ctr$`Variance on % of mothers treated, or untreated`
-  #
-  #   temp_ctr$'Square of Variance on ABO case number' = temp_ctr$'Variance on ABO case number'^2
-  #   temp_ctr$'SE on ABO case number' = sqrt(temp_ctr$'Variance on ABO case number')
-  #
-  #   temp_ctr$'2.5% of CS case number' = temp_ctr$`CS cases`-1.96*temp_ctr$'SE on CS case number'
-  #   temp_ctr$'2.5% of CS case number'[temp_ctr$'2.5% of CS case number'<0] <- 0
-  #   temp_ctr$'97.5% of CS case number' = temp_ctr$`CS cases`+1.96*temp_ctr$'SE on CS case number'
-  #
-  #   temp_ctr$'2.5% on ABO number' = temp_ctr$`ABO cases`-1.96*temp_ctr$'SE on ABO case number'
-  #   temp_ctr$'2.5% on ABO number'[temp_ctr$'2.5% on ABO number'<0] <- 0
-  #   temp_ctr$'97.5% on ABO number' = temp_ctr$`ABO cases`+1.96*temp_ctr$'SE on ABO case number'
-  #
-  #   #More variances
-  #   temp_ctr$'Variance on CS / 100,000 live births' = (temp_ctr$'CS cases'/temp_ctr$`Live Births`)^2*(temp_ctr$'Variance on CS case number'/(temp_ctr$'CS cases'^2)+
-  #                                                                                                       0+0)*100000^2;
-  #   temp_ctr$'Variance on ABO/100,000 live births' = (temp_ctr$`ABO cases (2012 method)`/temp_ctr$`Live Births`)^2*(temp_ctr$'Variance on ABO case number'/(temp_ctr$`ABO cases (2012 method)`^2)+
-  #                                                                                                                     0+0)*100000^2;
-  #
-  #   temp_ctr$'2.5% on CS / 100,000 live births' = temp_ctr$'CS / 100,000 live births' -1.96*sqrt(temp_ctr$'Variance on CS / 100,000 live births')
-  #   temp_ctr$'2.5% on CS / 100,000 live births'[temp_ctr$'2.5% on CS / 100,000 live births'<0] = 0
-  #   temp_ctr$'97.5% on CS / 100,000 live births' = temp_ctr$'CS / 100,000 live births' + 1.96*sqrt(temp_ctr$'Variance on CS / 100,000 live births')
-  #
-  #   temp_ctr$'2.5% on ABO/100,000 live births' = temp_ctr$'ABO/100,000 live births' - 1.96*sqrt(temp_ctr$'Variance on ABO/100,000 live births')
-  #   temp_ctr$'2.5% on ABO/100,000 live births'[temp_ctr$'2.5% on ABO/100,000 live births'<0] = 0
-  #   temp_ctr$'97.5% on ABO/100,000 live births'= temp_ctr$'ABO/100,000 live births' + 1.96*sqrt(temp_ctr$'Variance on ABO/100,000 live births')
-  #
-  #   CongenDataOut <- rbind(CongenDataOut,temp_ctr)
-  # }
-  #
-  # ################################################################################
-  # ################################################################################
-  # ################################################################################
-  # ################################################################################
-  # base_variables <- c( "Rank, 2012 ABO cases", "Rank, 2016 ABO cases","Rank 2012, CS case RATE",
-  #                      "Rank 2016, CS case RATE", "Country","WHO Region","ISO code","ISO3nmb",
-  #                      "Year", "Live Births", "Still births", "Stillbirths, Blencowe & Hogan 2016",
-  #                      "Pregnancies", "Still/Live births", "Source of Live and/or Stillbirths",
-  #                      "Women with >= 1 ANC visit (%)", "Source of ANC1", "N tested (1st ANC visit)",
-  #                      "N, 1st visits", "Syphilis-tested (1st ANC, %)", "N tested (any visit ANC)",
-  #                      "N any ANC visits", "Syphilis-tested (any ANC visit,%)", "Source of Test coverage",
-  #                      "ANC women with syphilis, treated, N","Syphilis-infected ANC", "Treated (%)",
-  #                      "Source of Treated", "Congenital syphilis case REPORTS", "CS case report rate",
-  #                      "EstimatePrevF", "MedianPrevF", "PrevLB_2.5%F", "PrevUB_97.5%F", "EstimatePrevM",
-  #                      "MedianPrevM", "PrevLB_2.5%M", "PrevUB_97.5%M", "EstimatePrevM+F","MedianPrevM+F",
-  #                      "PrevLB_2.5%M+F", "PrevUB_97.5%M+F", "CasePrev_EstF", "CasePrev_MedF", "CasePrev_LB_2.5%F",
-  #                      "CasePrev_UB_97.5%F","CasePrev_EstM", "CasePrev_MedM", "CasePrev_LB_2.5%M", "CasePrev_UB_97.5%M",
-  #                      "CasePrev_EstM+F", "CasePrev_MedM+F", "CasePrev_LB_2.5%M+F", "CasePrev_UB_97.5%M+F", "EstimateIncF",
-  #                      "MedianIncF", "IncLB_2.5%F", "IncUB_97.5%F", "EstimateIncM", "MedianIncM", "IncLB_2.5%M",
-  #                      "IncUB_97.5%M","EstimateIncM+F", "MedianIncM+F", "IncLB_2.5%M+F", "IncUB_97.5%M+F",
-  #                      "CaseInc_EstF", "CaseInc_MedF", "CaseInc_LB_2.5%F", "CaseInc_UB_97.5%F", "CaseInc_EstM",
-  #                      "CaseInc_MedM", "CaseInc_LB_2.5%M", "CaseInc_UB_97.5%M", "CaseInc_EstM+F", "CaseInc_MedM+F",
-  #                      "CaseInc_LB_2.5%M+F", "CaseInc_UB_97.5%M+F","NationalPop15-49yF", "NationalPop15-49yM",
-  #                      "NationalPop15-49yM+F", "Country_Curve_Fit", "Date_Last_Run", "Adult prev. USED -- Spectrum or other",
-  #                      "LB, Adult prev. USED -- Spectrum or other", "Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)",
-  #                      "LB on maternal prevalence, incl. Imputed", "UB on maternal prevalence, incl. Imputed",
-  #                      "Syphilis-infected pregnancies", "Treated mothers", "Untreated mothers", "ABO cases (2012 method)",
-  #                      "CS cases (2012 method)", "ABO, not seen in ANC (2012 method)", "ABO, ANC women not screened (2012 method)",
-  #                      "ABO, ANC-screened women not treated (2012 method)", "ABO = CS, ANC women treated (2012 method)",
-  #                      "CS cases, not seen in ANC (2012 method)", "CS cases, ANC women not screened (2012 method)",
-  #                      "CS cases, ANC-screened women not treated (2012 method)", "ABO cases", "CS cases",
-  #                      "ABO, not seen in ANC", "ABO, ANC women not screened", "ABO, ANC-screened women not treated",
-  #                      "ABO = CS, ANC women treated", "CS cases, not seen in ANC", "CS cases, ANC women not screened",
-  #                      "CS cases, ANC-screened women not treated", "CS / 100,000 live births", "CS / 100,000, 2012, for RANK",
-  #                      "CS / 100,000, 2016, for RANK",  "CS report completeness", "ABO/100,000 live births", "ABO risk, treated mothers",
-  #                      "Pregnancies, 2008", "Pregnancies, 2012", "Pregnancies, 2016", "Pregnancies, 2020", "ANC-1, imputed?",
-  #                      "Screen cov, imputed?", "Maternal prevalence, imputed?", "3 ANC service coverages national?",
-  #                      "Spectrum trend & national 3 ANC coverages Y=1", "Liveborn with clinical CS", "Prematurity or LBW due to CS",
-  #                      "Neonatal death due to CS", "Stillbirth due to CS", "Asymptomatic CS", "Asymptomatic, mother diagnosed",
-  #                      "Asymptomatic, mother NOT diagnosed","Asymptomatic, mother NOT diagnosed", "EMTCT elimination certification country?",
-  #                      "CS case report rate (incl. Imputations as 0.3 cases for reported 0s), Elimination countries",
-  #                      "ABO = CS, ANC women treated, ELIM.CIES only", "CS cases, not seen in ANC, ELIM.CIESonly",
-  #                      "CS cases, ANC women not screened, ELIM.CIESonly", "CS cases, ANC-screened women not treated, ELIM.CIESonly",
-  #                      "Graph labels", "Maternal duration of infection", "Maternal incidence/person-year",
-  #                      "Additional maternal infections, from reinfection after treatment", "Relative increase in CS, from reinfection",
-  #                      "Variance on adult (not only ANC) prevalence","Variance on MATERNAL prevalence",
-  #                      "Variance on maternal prevalence * Pregnancies^2", "Variance on # pregnancies", "Variance on ABO prob. For treated mothers",
-  #                      "LB on ANC-1 coverage", "UB on ANC-1 coverage", "Variance on ANC-1 coverage", "LB on screen coverage",
-  #                      "UB on screen coverage", "Variance on Screen coverage", "LB on Treat coverage", "UB on Treat coverage",
-  #                      "Variance on Treat coverage", "Variance on % of mothers treated, or untreated", "Variance on CS case number",
-  #                      "Square of Variance on CS case number", "SE on CS case number", "Variance on ABO case number",
-  #                      "Square of Variance on ABO case number", "SE on ABO case number", "2.5% of CS case number",
-  #                      "97.5% of CS case number", "2.5% on ABO number","97.5% on ABO number", "SDG Region")
-  #
-  # base_variables_desciption <- c( "Rank, 2012 ABO cases", "Rank, 2016 ABO cases","Rank 2012, CS case rate",
-  #                                 "Rank 2016, CS case rate", "Country","WHO Region","ISO code","ISO3nmb",
-  #                                 "Year", "Live Births", "Still births", "Stillbirths, Blencowe & Hogan 2016",
-  #                                 "Pregnancies", "Still/Live births", "Source of Live and/or Stillbirths",
-  #                                 "Women with >= 1 ANC visit (%)", "Source of ANC1", "N tested (1st ANC visit)",
-  #                                 "N, 1st visits", "Syphilis-tested (1st ANC, %)", "N tested (any visit ANC)",
-  #                                 "N any ANC visits", "Syphilis-tested (any ANC visit,%)", "Source of Test coverage",
-  #                                 "ANC women with syphilis, treated, N","Syphilis-infected ANC", "Treated (%)",
-  #                                 "Source of Treated", "Congenital syphilis case report", "CS case report rate",
-  #                                 "Estimate, Prev. F.", "Median Prev. F.", "LB, Prev. F. (%)", "UB, Prev. F. (%)",
-  #                                 "Estimate, Prev. M.", "Median, Prev. M.", "LB, Prev. M. (%)", "UB, Prev. M. (%)",
-  #                                 "Estimate, Prev. M.+F.", "Median, Prev. M.+F.", "LB Prev. M.+F. (%)",
-  #                                 "UB, Prev. M.+F. (%)", "Estimate, Case Prev. F.", "Median, Case Prev. F.", "LB, Case Prev. F.",
-  #                                 "UB, Case Prev. F.","Estimate, Case Prev. M.", "Median, Case Prev. M.", "LB, Case Prev. M.",
-  #                                 "UB, Case Prev. M.", "Estimate, Case Prev. M.+F.", "Median, Case Prev. M.+F.",
-  #                                 "LB, Case Prev. M.+F.", "UB, Case Prev. M.+F.", "Estimate, Inc. F.",
-  #                                 "Median, Inc. F.", "LB, Inc. F.", "UB, Inc. F.", "Estimate, Inc. M.", "Median, Inc. M.", "LB, Inc. M.",
-  #                                 "UB, Inc. M.","Estimate, Inc. M.+F.", "Median, Inc. M.+F.", "LB, Inc. M.+F.", "UB, Inc. M.+F.",
-  #                                 "Estimate, Case Inc. F.", "Medidan, Case Inc. F.", "LB, Case Inc. F.", "UB, Case Inc. F.", "Estimate, Case Inc. M.",
-  #                                 "Median, Case Inc. M.", "LB, Case Inc. M.", "UB, Case Inc. M.", "Estimate, Case Inc. M.+F.", "Median, Case Inc. M.+F.",
-  #                                 "LB, Case Inc. M.+F.", "UB, Case Inc. M.+F.","National Pop. 15-49y F.", "National Pop. 15-49y M.",
-  #                                 "National Pop. 15-49y M.+F.", "Country Curve Fit", "Date last run", "Adult prev. used -- Spectrum or other",
-  #                                 "LB, Adult prev. Used -- Spectrum or other", "Maternal syphilis prevalence",
-  #                                 "LB, maternal prev.", "UB, maternal prev.",
-  #                                 "Syphilis-infected pregnancies", "Treated mothers", "Untreated mothers", "ABO cases (2012 method)",
-  #                                 "CS cases (2012 method)", "ABO, not seen in ANC (2012 method)", "ABO, ANC women not screened (2012 method)",
-  #                                 "ABO, ANC-screened women not treated (2012 method)", "ABO = CS, ANC women treated (2012 method)",
-  #                                 "CS cases, not seen in ANC (2012 method)", "CS cases, ANC women not screened (2012 method)",
-  #                                 "CS cases, ANC-screened women not treated (2012 method)", "ABO cases", "CS cases",
-  #                                 "ABO, not seen in ANC", "ABO, ANC women not screened", "ABO, ANC-screened women not treated",
-  #                                 "ABO = CS, ANC women treated", "CS cases, not seen in ANC", "CS cases, ANC women not screened",
-  #                                 "CS cases, ANC-screened women not treated", "CS / 100,000 live births", "CS / 100,000, 2012, for rank",
-  #                                 "CS / 100,000, 2016, for rank",  "CS report completeness", "ABO/100,000 live births", "ABO risk, treated mothers",
-  #                                 "Pregnancies, 2008", "Pregnancies, 2012", "Pregnancies, 2016", "Pregnancies, 2020", "ANC-1, imputed (Yes/No)",
-  #                                 "Screen cov., imputed (Yes/No)", "Maternal prev., imputed (Yes/No)", "3 ANC service coverages national (Yes/No)",
-  #                                 "Spectrum trend & national 3 ANC coverages", "Liveborn with clinical CS", "Prematurity or LBW due to CS",
-  #                                 "Neonatal death due to CS", "Stillbirth due to CS", "Asymptomatic CS", "Asymptomatic, mother diagnosed",
-  #                                 "Asymptomatic, mother not diagnosed","Asymptomatic, mother not diagnosed", "EMTCT elimination certification country?",
-  #                                 "CS case report rate (incl. Imputations as 0.3 cases for reported 0s), Elimination countries",
-  #                                 "ABO = CS, ANC women treated, ELIM.CIES only", "CS cases, not seen in ANC, ELIM.CIES only",
-  #                                 "CS cases, ANC women not screened, ELIM.CIES only", "CS cases, ANC-screened women not treated, ELIM.CIES only",
-  #                                 "Graph labels", "Maternal duration of infection", "Maternal incidence/person-year",
-  #                                 "Additional maternal infections, from reinfection after treatment", "Relative increase in CS, from reinfection",
-  #                                 "Variance on adult (not only ANC) prevalence","Variance on maternal prevalence",
-  #                                 "Variance on maternal prevalence * Pregnancies^2", "Variance on # pregnancies", "Variance on ABO prob. For treated mothers",
-  #                                 "LB on ANC-1 coverage", "UB on ANC-1 coverage", "Variance on ANC-1 coverage", "LB on screen coverage",
-  #                                 "UB on screen coverage", "Variance on Screen coverage", "LB on Treat coverage", "UB on Treat coverage",
-  #                                 "Variance on Treat coverage", "Variance on % of mothers treated, or untreated", "Variance on CS case number",
-  #                                 "Square of Variance on CS case number", "SE on CS case number", "Variance on ABO case number",
-  #                                 "Square of Variance on ABO case number", "SE on ABO case number", "LB, CS case number",
-  #                                 "UB, CS case number", "LB, ABO number","UB, ABO number", "SDG Region")
-  #
-  # var_name_table <- data.frame(dbname=base_variables,chname=base_variables_desciption)
-  # fixidx <- c(1:9);
-  # idxtoplot <- list(c('Pregnancies','Pregnancies','Pregnancies'),
-  #                   c("Treated (%)","Treated (%)","Treated (%)"),
-  #                   c("Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)","LB on maternal prevalence, incl. Imputed","UB on maternal prevalence, incl. Imputed"),
-  #                   c("ABO cases","2.5% on ABO number","97.5% on ABO number"),
-  #                   c("CS cases","2.5% of CS case number","97.5% of CS case number"),
-  #                   c("CS / 100,000 live births","2.5% on CS / 100,000 live births","97.5% on CS / 100,000 live births"),
-  #                   c("ABO/100,000 live births","2.5% on ABO/100,000 live births","97.5% on ABO/100,000 live births"),
-  #                   c("Syphilis-tested (1st ANC, %)","Syphilis-tested (1st ANC, %)","Syphilis-tested (1st ANC, %)"),
-  #                   c("Women with >= 1 ANC visit (%)","Women with >= 1 ANC visit (%)","Women with >= 1 ANC visit (%)"))
-  #
-  # BaseData <- CongenDataOut[,which(is.element(names(CongenDataOut),var_name_table$dbname[fixidx]))]
-  # LongCongenDataOutForPlots <- data.frame()
-  #
-  # for(ii in seq_len(length(idxtoplot)))
-  # {
-  #   v_name <- idxtoplot[[ii]][1];
-  #   idxb <- which(names(CongenDataOut)==v_name)
-  #   idxlb <- which(names(CongenDataOut)==idxtoplot[[ii]][2])
-  #   idxub <- which(names(CongenDataOut)==idxtoplot[[ii]][3])
-  #
-  #   temp_data <- BaseData;
-  #   temp_data$indicator <- v_name;
-  #   temp_data$value <- CongenDataOut[,idxb];
-  #   temp_data$lower <- CongenDataOut[,idxlb];
-  #   temp_data$upper <- CongenDataOut[,idxub];
-  #   temp_data$datatype <- "Projected"
-  #   LongCongenDataOutForPlots <- rbind(LongCongenDataOutForPlots,temp_data)
-  # }
-  #
-  # #Prevalence
-  # temp_data <- BaseData[1:nrow(SyphDataRaw),];
-  # temp_data[,] <- NA
-  # temp_data$Country <- SyphDataRaw$Country
-  # temp_data$`WHO Region` <- sapply(SyphDataRaw$WHO_region, function(xx) substr(xx,1,nchar(xx)-1))
-  # temp_data$`ISO code` <- SyphDataRaw$ISO3_letters
-  # temp_data$ISO3nmb <- SyphDataRaw$ISO3
-  # temp_data$Year <- SyphDataRaw$Year
-  # temp_data$indicator <- "Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)";
-  # temp_data$value <- SyphDataRaw$BestPrevalence;
-  # temp_data$lower <- SyphDataRaw$LowerPrevalence;
-  # temp_data$upper <- SyphDataRaw$UpperPrevalence;
-  # temp_data$datatype <- SyphDataRaw$Data_type
-  # LongCongenDataOutForPlotsRaw <- temp_data
-  # rm(temp_data)
-  #
-  # #"Syphilis-tested (1st ANC, %)"
-  # temp_data <- CongenDataRaw[,1:9];
-  # temp_data$indicator <- "Syphilis-tested (1st ANC, %)";
-  # temp_data$value <- CongenDataRaw$`Syphilis-tested (1st ANC, %)`;
-  # temp_data$lower <- CongenDataRaw$`Syphilis-tested (1st ANC, %)`;
-  # temp_data$upper <- CongenDataRaw$`Syphilis-tested (1st ANC, %)`;
-  # temp_data$datatype <- "Reported"
-  # LongCongenDataOutForPlotsRaw <- rbind(LongCongenDataOutForPlotsRaw,temp_data)
-  # rm(temp_data)
-  #
-  # #"Women with >= 1 ANC visit (%)"
-  # temp_data <- CongenDataRaw[,1:9];
-  # temp_data$indicator <- "Women with >= 1 ANC visit (%)";
-  # temp_data$value <- CongenDataRaw$`Women with >= 1 ANC visit (%)`;
-  # temp_data$lower <- CongenDataRaw$`Women with >= 1 ANC visit (%)`;
-  # temp_data$upper <- CongenDataRaw$`Women with >= 1 ANC visit (%)`;
-  # temp_data$datatype <- "Reported"
-  # LongCongenDataOutForPlotsRaw <- rbind(LongCongenDataOutForPlotsRaw,temp_data)
-  #
-  # LongCongenDataOutForPlotsRaw$SDG_Region <- sapply(LongCongenDataOutForPlotsRaw$`ISO code`, function(x)
-  # {
-  #   res <- NA
-  #   idx <- which(SDGRegions$COUNTRY_CODE==x)
-  #   if(length(idx)>=1) res <- SDGRegions$'SDG Regions'[idx[1]]
-  #   res
-  # })
-  #
-  # LongCongenDataOutForPlotsRaw <- subset(LongCongenDataOutForPlotsRaw,!is.na(SDG_Region))
-  # rm(temp_data)
-  #
-  # #Grabing data by regions
-  # LongCongenDataOutForPlots <- subset(LongCongenDataOutForPlots,!(Country%in%paste(unique(LongCongenDataOutForPlots$`WHO Region`),"total")))
-  #
-  # LongCongenDataOutForPlots$SDG_Region <- sapply(LongCongenDataOutForPlots$`ISO code`, function(x)
-  # {
-  #   res <- NA
-  #   idx <- which(SDGRegions$COUNTRY_CODE==x)
-  #   if(length(idx)>=1) res <- SDGRegions$'SDG Regions'[idx[1]]
-  #   res
-  # })
-  #
-  # #SDG Regions
-  # for(reg in unique(LongCongenDataOutForPlots$SDG_Region))#for(reg in unique(LongCongenDataOutForPlots$`WHO Region`))
-  # {
-  #   years <- unique(LongCongenDataOutForPlots$Year)
-  #   country <- reg;
-  #   rk <- NA
-  #   isoCode <- paste(reg,"r",sep="_")
-  #
-  #   temp_data <- subset(LongCongenDataOutForPlots,LongCongenDataOutForPlots$SDG_Region==reg)
-  #
-  #   femalepop <- sapply(seq_len(nrow(temp_data)), function(ii){
-  #     ctr <- temp_data$`ISO code`[ii];
-  #     yy <- temp_data$Year[ii]
-  #     idx <- which(CongenDataOut$`ISO code`==ctr & CongenDataOut$Year==yy)
-  #     res <- NA
-  #     if(length(idx)>=1)
-  #     {
-  #       vals <- CongenDataOut$`NationalPop15-49yF`[idx]
-  #       if(any(!is.na(vals))) res <- mean(vals,na.rm=T)
-  #     }
-  #     res
-  #   })
-  #
-  #   pregnancies <- sapply(seq_len(nrow(temp_data)), function(ii){
-  #     ctr <- temp_data$`ISO code`[ii];
-  #     yy <- temp_data$Year[ii]
-  #     idx <- which(CongenDataOut$`ISO code`==ctr & CongenDataOut$Year==yy)
-  #     res <- NA
-  #     if(length(idx)>=1)
-  #     {
-  #       vals <- CongenDataOut$Pregnancies[idx]
-  #       if(any(!is.na(vals))) res <- mean(vals,na.rm=T)
-  #     }
-  #     res
-  #   })
-  #
-  #   livebirths <- sapply(seq_len(nrow(temp_data)), function(ii){
-  #     ctr <- temp_data$`ISO code`[ii];
-  #     yy <- temp_data$Year[ii]
-  #     idx <- which(CongenDataOut$`ISO code`==ctr & CongenDataOut$Year==yy)
-  #     res <- NA
-  #     if(length(idx)>=1)
-  #     {
-  #       vals <- CongenDataOut$`Live Births`[idx]
-  #       if(any(!is.na(vals))) res <- mean(vals,na.rm=T)
-  #     }
-  #     res
-  #   })
-  #
-  #   for(indic in c("Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)",
-  #                  "Treated (%)","CS / 100,000 live births",
-  #                  "ABO/100,000 live births", "Syphilis-tested (1st ANC, %)", "Women with >= 1 ANC visit (%)"))
-  #   {
-  #     value <- lower <- upper <- numeric()
-  #     for(yii  in seq_len(length(years)))
-  #     {
-  #       #cat("--", reg,"; year=",years[yii], "\n" )
-  #       value[yii] <- NA;
-  #       lower[yii] <- NA;
-  #       upper[yii] <- NA;
-  #
-  #       av <- temp_data$value[temp_data$indicator==indic & temp_data$Year==years[yii]]
-  #       indic_weights <- pregnancies[temp_data$indicator==indic & temp_data$Year==years[yii]];
-  #       if(!indic%in%c("Treated (%)", "Syphilis-tested (1st ANC, %)", "Women with >= 1 ANC visit (%)")) indic_weights <- livebirths[temp_data$indicator==indic & temp_data$Year==years[yii]]
-  #
-  #       if(!all(is.na(av)))
-  #       {
-  #         value[yii] <- weighted.mean(av,indic_weights,na.rm=T)
-  #         vsd <- ((temp_data$upper[temp_data$indicator==indic & temp_data$Year==years[yii]]-temp_data$lower[temp_data$indicator==indic & temp_data$Year==years[yii]])/2/1.96)^2
-  #         vsd <- sqrt(sum(vsd*indic_weights^2 ,na.rm=T)/sum(indic_weights,na.rm=T)^2)
-  #         lower[yii] <- value[yii]-1.96*vsd;
-  #         upper[yii] <- value[yii]+1.96*vsd;
-  #       }#End if(!all(is.na(av)))
-  #     }
-  #
-  #     lower[lower<0] = 0;
-  #     tt_dattomerge <- temp_data[1:length(years),]
-  #     tt_dattomerge$'Rank, 2012 ABO cases' <- tt_dattomerge$'Rank, 2016 ABO cases' <- tt_dattomerge$'Rank 2012, CS case RATE' <-rk
-  #     tt_dattomerge$'Rank 2016, CS case RATE' <- rk
-  #     tt_dattomerge$Country <- country
-  #     tt_dattomerge$'WHO Region' <- NA#reg #isoCode
-  #     tt_dattomerge$'ISO code' <- isoCode
-  #     tt_dattomerge$'ISO3nmb' <- isoCode
-  #     tt_dattomerge$Year <- years
-  #     tt_dattomerge$indicator <- indic
-  #     tt_dattomerge$value <- value
-  #     tt_dattomerge$upper <- upper
-  #     tt_dattomerge$lower <- lower
-  #     tt_dattomerge$datatype <- "Projected"
-  #     tt_dattomerge$SDG_Region <- reg #isoCode
-  #     LongCongenDataOutForPlots <- rbind(LongCongenDataOutForPlots,tt_dattomerge)
-  #   }#End
-  #
-  #   ###
-  #   for(indic in c("Pregnancies","ABO cases",
-  #                  "CS cases"))
-  #   {
-  #     value <- lower <- upper <- numeric()
-  #     for(yii  in seq_len(length(years)))
-  #     {
-  #       value[yii] <- NA;
-  #       lower[yii] <- NA;
-  #       upper[yii] <- NA;
-  #
-  #       av <- temp_data$value[temp_data$indicator==indic & temp_data$Year==years[yii]]
-  #       if(!any(is.na(av)))
-  #       {
-  #         value[yii] <- sum(av)
-  #         vsd <- ((temp_data$upper[temp_data$indicator==indic & temp_data$Year==years[yii]]-temp_data$lower[temp_data$indicator==indic & temp_data$Year==years[yii]])/2/1.96)^2
-  #         vsd <- sqrt(sum(vsd, na.rm=T))
-  #         lower[yii] <- value[yii]-1.96*vsd;
-  #         upper[yii] <- value[yii]+1.96*vsd;
-  #       }#End if(!all(is.na(av)))
-  #     }
-  #
-  #     lower[lower<0] = 0;
-  #     tt_dattomerge <- temp_data[1:length(years),]
-  #     tt_dattomerge$'Rank, 2012 ABO cases' <- tt_dattomerge$'Rank, 2016 ABO cases' <- tt_dattomerge$'Rank 2012, CS case RATE' <-rk
-  #     tt_dattomerge$'Rank 2016, CS case RATE' <- rk
-  #     tt_dattomerge$Country <- country
-  #     tt_dattomerge$'WHO Region' <- NA #isoCode
-  #     tt_dattomerge$'ISO code' <- isoCode
-  #     tt_dattomerge$'ISO3nmb' <- isoCode
-  #     tt_dattomerge$Year <- years
-  #     tt_dattomerge$indicator <- indic
-  #     tt_dattomerge$value <- value
-  #     tt_dattomerge$upper <- upper
-  #     tt_dattomerge$lower <- lower
-  #     tt_dattomerge$datatype <- "Projected"
-  #     tt_dattomerge$SDG_Region <- reg #isoCode
-  #     LongCongenDataOutForPlots <- rbind(LongCongenDataOutForPlots,tt_dattomerge)
-  #   }#End
-  # }
-  #
-  # ###Global
-  # years <- unique(LongCongenDataOutForPlots$Year)
-  # country <- "Global";
-  # rk <- NA
-  # isoCode <- paste(reg,"r",sep="_")
-  #
-  # ###
-  # temp_data <- subset(LongCongenDataOutForPlots, !(Country%in%unique(LongCongenDataOutForPlots$SDG_Region)))
-  # for(indic in c("Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)",
-  #                "Treated (%)","CS / 100,000 live births",
-  #                "ABO/100,000 live births", "Syphilis-tested (1st ANC, %)", "Women with >= 1 ANC visit (%)"))
-  # {
-  #   temp_data <- subset(LongCongenDataOutForPlots, !(Country%in%unique(LongCongenDataOutForPlots$SDG_Region)))#LongCongenDataOutForPlots
-  #
-  #   femalepop <- sapply(seq_len(nrow(temp_data)), function(ii){
-  #     ctr <- temp_data$`ISO code`[ii];
-  #     yy <- temp_data$Year[ii]
-  #     idx <- which(CongenDataOut$`ISO code`==ctr & CongenDataOut$Year==yy)
-  #     res <- NA
-  #     if(length(idx)>=1)
-  #     {
-  #       vals <- CongenDataOut$`NationalPop15-49yF`[idx]
-  #       if(any(!is.na(vals))) res <- mean(vals,na.rm=T)
-  #     }
-  #     res
-  #   })
-  #
-  #   pregnancies <- sapply(seq_len(nrow(temp_data)), function(ii){
-  #     ctr <- temp_data$`ISO code`[ii];
-  #     yy <- temp_data$Year[ii]
-  #     idx <- which(CongenDataOut$`ISO code`==ctr & CongenDataOut$Year==yy)
-  #     res <- NA
-  #     if(length(idx)>=1)
-  #     {
-  #       vals <- CongenDataOut$Pregnancies[idx]
-  #       if(any(!is.na(vals))) res <- mean(vals,na.rm=T)
-  #     }
-  #     res
-  #   })
-  #
-  #   livebirths <- sapply(seq_len(nrow(temp_data)), function(ii){
-  #     ctr <- temp_data$`ISO code`[ii];
-  #     yy <- temp_data$Year[ii]
-  #     idx <- which(CongenDataOut$`ISO code`==ctr & CongenDataOut$Year==yy)
-  #     res <- NA
-  #     if(length(idx)>=1)
-  #     {
-  #       vals <- CongenDataOut$`Live Births`[idx]
-  #       if(any(!is.na(vals))) res <- mean(vals,na.rm=T)
-  #     }
-  #     res
-  #   })
-  #
-  #   value <- lower <- upper <- numeric()
-  #   for(yii  in seq_len(length(years)))
-  #   {
-  #     value[yii] <- NA;
-  #     lower[yii] <- NA;
-  #     upper[yii] <- NA;
-  #
-  #     av <- temp_data$value[temp_data$indicator==indic & temp_data$Year==years[yii]]
-  #     indic_weights <- pregnancies[temp_data$indicator==indic & temp_data$Year==years[yii]];
-  #     if(!indic%in%c("Treated (%)", "Syphilis-tested (1st ANC, %)", "Women with >= 1 ANC visit (%)")) indic_weights <- livebirths[temp_data$indicator==indic & temp_data$Year==years[yii]]
-  #
-  #     if(!all(is.na(av)))
-  #     {
-  #       value[yii] <- weighted.mean(av,indic_weights,na.rm=T)
-  #       vsd <- ((temp_data$upper[temp_data$indicator==indic & temp_data$Year==years[yii]]-temp_data$lower[temp_data$indicator==indic & temp_data$Year==years[yii]])/2/1.96)^2
-  #       vsd <- sqrt(sum(vsd*indic_weights^2,na.rm=T)/sum(indic_weights,na.rm=T)^2)
-  #       lower[yii] <- value[yii]-1.96*vsd;
-  #       upper[yii] <- value[yii]+1.96*vsd;
-  #     }#End if(!all(is.na(av)))
-  #   }
-  #
-  #   lower[lower<0] = 0;
-  #   tt_dattomerge <- temp_data[1:length(years),]
-  #   tt_dattomerge$'Rank, 2012 ABO cases' <- tt_dattomerge$'Rank, 2016 ABO cases' <- tt_dattomerge$'Rank 2012, CS case RATE' <-rk
-  #   tt_dattomerge$'Rank 2016, CS case RATE' <- rk
-  #   tt_dattomerge$Country <- "Global"
-  #   tt_dattomerge$'WHO Region' <- "Global" #isoCode
-  #   tt_dattomerge$'ISO code' <- "Global"
-  #   tt_dattomerge$'ISO3nmb' <- "Global"
-  #   tt_dattomerge$Year <- years
-  #   tt_dattomerge$indicator <- indic
-  #   tt_dattomerge$value <- value
-  #   tt_dattomerge$upper <- upper
-  #   tt_dattomerge$lower <- lower
-  #   tt_dattomerge$datatype <- "Projected"
-  #   tt_dattomerge$SDG_Region <- "Global" #isoCode
-  #   LongCongenDataOutForPlots <- rbind(LongCongenDataOutForPlots,tt_dattomerge)
-  # }#End
-  #
-  # ###
-  # for(indic in c("Pregnancies","ABO cases",
-  #                "CS cases"))
-  # {
-  #   value <- lower <- upper <- numeric()
-  #   for(yii  in seq_len(length(years)))
-  #   {
-  #     value[yii] <- NA;
-  #     lower[yii] <- NA;
-  #     upper[yii] <- NA;
-  #     av <- temp_data$value[temp_data$indicator==indic & temp_data$Year==years[yii]]
-  #     if(!any(is.na(av)))
-  #     {
-  #       value[yii] <- sum(av)
-  #       vsd <- ((temp_data$upper[temp_data$indicator==indic & temp_data$Year==years[yii]]-temp_data$lower[temp_data$indicator==indic & temp_data$Year==years[yii]])/2/1.96)^2
-  #       vsd <- sqrt(sum(vsd, na.rm=T))
-  #       lower[yii] <- value[yii]-1.96*vsd;
-  #       upper[yii] <- value[yii]+1.96*vsd;
-  #     }#End if(!all(is.na(av)))
-  #   }
-  #
-  #   lower[lower<0] = 0;
-  #   tt_dattomerge <- temp_data[1:length(years),]
-  #   tt_dattomerge$'Rank, 2012 ABO cases' <- tt_dattomerge$'Rank, 2016 ABO cases' <- tt_dattomerge$'Rank 2012, CS case RATE' <-rk
-  #   tt_dattomerge$'Rank 2016, CS case RATE' <- rk
-  #   tt_dattomerge$Country <- "Global"
-  #   tt_dattomerge$'WHO Region' <- "Global" #isoCode
-  #   tt_dattomerge$'ISO code' <- "Global"
-  #   tt_dattomerge$'ISO3nmb' <- "Global"
-  #   tt_dattomerge$Year <- years
-  #   tt_dattomerge$indicator <- indic
-  #   tt_dattomerge$value <- value
-  #   tt_dattomerge$upper <- upper
-  #   tt_dattomerge$lower <- lower
-  #   tt_dattomerge$datatype <- "Projected"
-  #   tt_dattomerge$SDG_Region <- "Global" #isoCode
-  #   LongCongenDataOutForPlots <- rbind(LongCongenDataOutForPlots,tt_dattomerge)
-  # }#End
-  #
-  # LongCongenDataOutForPlots <- rbind(LongCongenDataOutForPlots,LongCongenDataOutForPlotsRaw)
-  # rm(LongCongenDataOutForPlotsRaw)
-  # ###############################################################################
-  # ###############################################################################
-  # ###############################################################################
-  # RegCSABO <- data.frame()
-  # for(reg in unique(CongenDataOut$SDG_Region))
-  # {
-  #   all_reg_data <- subset(CongenDataOut,CongenDataOut$SDG_Region==reg)
-  #   for(yy in unique(CongenDataOut$Year))
-  #   {
-  #     all_reg_data_yy <- subset(all_reg_data,Year==yy)
-  #     livebirths <- sum(all_reg_data_yy$`Live Births`,na.rm=T)
-  #     Livebornwithcliniccs <- sum(all_reg_data_yy$`Liveborn with clinical CS`,na.rm=T)/livebirths*100000
-  #     PrematurityLBWduecs <- sum(all_reg_data_yy$`Prematurity or LBW due to CS`,na.rm=T)/livebirths*100000
-  #     Neonataldeathduecs <- sum(all_reg_data_yy$`Stillbirth due to CS`,na.rm=T)/livebirths*100000
-  #     StillbirthduetoCS <- sum(all_reg_data_yy$`Stillbirth due to CS`,na.rm=T)/livebirths*100000
-  #     Asymptomaticcs <- sum(all_reg_data_yy$`Neonatal death due to CS`,na.rm=T)/livebirths*100000
-  #
-  #     ABOnotseeninANC <- sum(all_reg_data_yy$`ABO, not seen in ANC`, na.rm=T)
-  #     ABOANCwomennotscreened <- sum(all_reg_data_yy$`ABO, ANC women not screened`, na.rm=T)
-  #     ABOANCscreenedwomennottreated <- sum(all_reg_data_yy$`ABO, ANC-screened women not treated`, na.rm=T)
-  #     ABOANCtestedAndtreated <- sum(all_reg_data_yy$`ABO = CS, ANC women treated`, na.rm=T)
-  #
-  #     temp <- data.matrix(matrix(c(Livebornwithcliniccs,PrematurityLBWduecs, Neonataldeathduecs, StillbirthduetoCS, Asymptomaticcs,livebirths,
-  #                                  ABOnotseeninANC, ABOANCwomennotscreened, ABOANCscreenedwomennottreated, ABOANCtestedAndtreated), nrow=1))
-  #
-  #     colnames(temp) <- c("Liveborn with clinical CS",
-  #                         "Prematurity or LBW due to CS",
-  #                         "Neonatal death due to CS",
-  #                         "Stillbirth due to CS",
-  #                         "Asymptomatic CS",
-  #                         "Live births",
-  #                         "ABO, not seen in ANC",
-  #                         "ABO, ANC women not screened",
-  #                         "ABO, ANC-screened women not treated",
-  #                         "ABO, ANC women treated")
-  #
-  #     temp <- as.data.frame(temp)
-  #
-  #     alltemp <- data.frame(Country=NA,'WHO Region'=NA,'ISO code'=NA, SDG_Region=reg, Year=yy, check.names = F)
-  #     alltemp <- cbind(alltemp,temp)
-  #     RegCSABO <- rbind(RegCSABO,alltemp)
-  #   }#End for(yy in unique(CongenDataOut$Year))
-  # }#for(reg in unique(CongenDataOut$`WHO Region`))
-  #
-  # #for(reg in unique(CongenDataOut$`WHO Region`))
-  # {
-  #   reg <- "Global"
-  #   all_reg_data <- CongenDataOut
-  #   for(yy in unique(CongenDataOut$Year))
-  #   {
-  #     all_reg_data_yy <- subset(all_reg_data,Year==yy)
-  #     livebirths <- sum(all_reg_data_yy$`Live Births`,na.rm=T)
-  #     Livebornwithcliniccs <- sum(all_reg_data_yy$`Liveborn with clinical CS`,na.rm=T)/livebirths*100000
-  #     PrematurityLBWduecs <- sum(all_reg_data_yy$`Prematurity or LBW due to CS`,na.rm=T)/livebirths*100000
-  #     Neonataldeathduecs <- sum(all_reg_data_yy$`Stillbirth due to CS`,na.rm=T)/livebirths*100000
-  #     StillbirthduetoCS <- sum(all_reg_data_yy$`Stillbirth due to CS`,na.rm=T)/livebirths*100000
-  #     Asymptomaticcs <- sum(all_reg_data_yy$`Asymptomatic CS`,na.rm=T)/livebirths*100000
-  #
-  #     ABOnotseeninANC <- sum(all_reg_data_yy$`ABO, not seen in ANC`, na.rm=T)
-  #     ABOANCwomennotscreened <- sum(all_reg_data_yy$`ABO, ANC women not screened`, na.rm=T)
-  #     ABOANCscreenedwomennottreated <- sum(all_reg_data_yy$`ABO, ANC-screened women not treated`, na.rm=T)
-  #     ABOANCtestedAndtreated <- sum(all_reg_data_yy$`ABO = CS, ANC women treated`, na.rm=T)
-  #
-  #     temp <- data.matrix(matrix(c(Livebornwithcliniccs,PrematurityLBWduecs, Neonataldeathduecs, StillbirthduetoCS, Asymptomaticcs,livebirths,
-  #                                  ABOnotseeninANC, ABOANCwomennotscreened, ABOANCscreenedwomennottreated, ABOANCtestedAndtreated), nrow=1))
-  #
-  #     colnames(temp) <- c("Liveborn with clinical CS",
-  #                         "Prematurity or LBW due to CS",
-  #                         "Neonatal death due to CS",
-  #                         "Stillbirth due to CS",
-  #                         "Asymptomatic CS",
-  #                         "Live births",
-  #                         "ABO, not seen in ANC",
-  #                         "ABO, ANC women not screened",
-  #                         "ABO, ANC-screened women not treated",
-  #                         "ABO, ANC women treated")
-  #
-  #     temp <- as.data.frame(temp)
-  #
-  #     alltemp <- data.frame(Country=NA,'WHO Region'=NA,'ISO code'=NA, SDG_Region=reg,Year=yy, check.names = F)
-  #     alltemp <- cbind(alltemp,temp)
-  #     RegCSABO <- rbind(RegCSABO,alltemp)
-  #   }#End for(yy in unique(CongenDataOut$Year))
-  # }#for(reg in unique(CongenDataOut$`WHO Region`))
-  #
-  # LongRegCSABO <- data.frame()
-  # for(vn in c("Liveborn with clinical CS",
-  #             "Prematurity or LBW due to CS",
-  #             "Neonatal death due to CS",
-  #             "Stillbirth due to CS",
-  #             "Asymptomatic CS",
-  #             "Live births",
-  #             "ABO, not seen in ANC",
-  #             "ABO, ANC women not screened",
-  #             "ABO, ANC-screened women not treated",
-  #             "ABO, ANC women treated"))
-  # {
-  #   temp_data <- RegCSABO[,names(RegCSABO)%in%c("Country", "WHO Region", "ISO code", "SDG_Region", "Year", vn)]
-  #   names(temp_data)[names(temp_data)==vn] <- "value"
-  #   temp_data$indicator <- vn
-  #   LongRegCSABO <- rbind(LongRegCSABO,temp_data)
-  # }
-  # ##############################################################################
-  # ##############################################################################
-  # ##############################################################################
-  #
-  # ################################################################################
-  # ###Global and regional Syphilis Prevalence estimates
-  # previnc_vars <- c("Country","WHO Region","ISO code", "Year", "EstimatePrevF", "MedianPrevF",
-  #                   "PrevLB_2.5%F", "PrevUB_97.5%F", "EstimatePrevM",
-  #                   "MedianPrevM", "PrevLB_2.5%M", "PrevUB_97.5%M", "EstimatePrevM+F","MedianPrevM+F",
-  #                   "PrevLB_2.5%M+F", "PrevUB_97.5%M+F", "CasePrev_EstF", "CasePrev_MedF", "CasePrev_LB_2.5%F",
-  #                   "CasePrev_UB_97.5%F","CasePrev_EstM", "CasePrev_MedM", "CasePrev_LB_2.5%M", "CasePrev_UB_97.5%M",
-  #                   "CasePrev_EstM+F", "CasePrev_MedM+F", "CasePrev_LB_2.5%M+F", "CasePrev_UB_97.5%M+F", "EstimateIncF",
-  #                   "MedianIncF", "IncLB_2.5%F", "IncUB_97.5%F", "EstimateIncM", "MedianIncM", "IncLB_2.5%M",
-  #                   "IncUB_97.5%M","EstimateIncM+F", "MedianIncM+F", "IncLB_2.5%M+F", "IncUB_97.5%M+F",
-  #                   "CaseInc_EstF", "CaseInc_MedF", "CaseInc_LB_2.5%F", "CaseInc_UB_97.5%F", "CaseInc_EstM",
-  #                   "CaseInc_MedM", "CaseInc_LB_2.5%M", "CaseInc_UB_97.5%M", "CaseInc_EstM+F", "CaseInc_MedM+F",
-  #                   "CaseInc_LB_2.5%M+F", "CaseInc_UB_97.5%M+F","NationalPop15-49yF", "NationalPop15-49yM",
-  #                   "NationalPop15-49yM+F", "Country_Curve_Fit")
-  #
-  # RegDataPrevInc <- data.frame()
-  # for(reg in unique(CongenDataOut$SDG_Region))
-  # {
-  #   all_reg_data <- subset(CongenDataOut,CongenDataOut$SDG_Region==reg)
-  #   for(yy in unique(CongenDataOut$Year))
-  #   {
-  #     all_reg_data_yy <- subset(all_reg_data,Year==yy)
-  #     EstimatePrevF <- weighted.mean(all_reg_data_yy$'EstimatePrevF',dplyr::coalesce(all_reg_data_yy$'NationalPop15-49yF',0),na.rm=T)
-  #     MedianPrevF <- median(all_reg_data_yy$'EstimatePrevF',na.rm = T)
-  #
-  #     vprevF <- ((all_reg_data_yy$'PrevUB_97.5%F'-all_reg_data_yy$'PrevLB_2.5%F')/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF*all_reg_data_yy$'NationalPop15-49yF'^2,na.rm=T)/sum(all_reg_data_yy$'NationalPop15-49yF',na.rm=T)^2)
-  #
-  #     PrevLB_F <- max(EstimatePrevF-1.96*sprevF,0)
-  #     PrevUB_F <- min(EstimatePrevF+1.96*sprevF,1)
-  #
-  #     #
-  #     EstimatePrevM <- weighted.mean(all_reg_data_yy$'EstimatePrevM',dplyr::coalesce(all_reg_data_yy$'NationalPop15-49yM',0),na.rm=T)
-  #     MedianPrevM <- median(all_reg_data_yy$'EstimatePrevM',na.rm = T)
-  #
-  #     vprevM <- ((all_reg_data_yy$'PrevUB_97.5%M'-all_reg_data_yy$'PrevLB_2.5%M')/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM*all_reg_data_yy$'NationalPop15-49yM'^2,na.rm=T)/sum(all_reg_data_yy$'NationalPop15-49yM',na.rm=T)^2)
-  #
-  #     PrevLB_M <- max(EstimatePrevM-1.96*sprevM,0)
-  #     PrevUB_M <- min(EstimatePrevM+1.96*sprevM,1)
-  #
-  #     #
-  #     EstimatePrevMF <- weighted.mean(all_reg_data_yy$'EstimatePrevM+F',dplyr::coalesce(all_reg_data_yy$'NationalPop15-49yM+F',0),na.rm=T)
-  #     MedianPrevMF <- median(all_reg_data_yy$'EstimatePrevM+F',na.rm = T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$'PrevUB_97.5%M+F'-all_reg_data_yy$'PrevLB_2.5%M+F')/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF*all_reg_data_yy$'NationalPop15-49yM+F'^2,na.rm=T)/sum(all_reg_data_yy$'NationalPop15-49yM+F',na.rm=T)^2)
-  #
-  #     PrevLB_MF <- max(EstimatePrevMF-1.96*sprevMF,0)
-  #     PrevUB_MF <- min(EstimatePrevMF+1.96*sprevM,1)
-  #
-  #     #
-  #     CasePrev_EstF <- sum(all_reg_data_yy$CasePrev_EstF, na.rm=T)
-  #     CasePrev_MedF <- sum(all_reg_data_yy$CasePrev_MedF, na.rm=T)
-  #
-  #     vprevF <- ((all_reg_data_yy$'CasePrev_UB_97.5%F'-all_reg_data_yy$'CasePrev_LB_2.5%F')/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF,na.rm=T))
-  #
-  #     CasePrevLB_F <- max(CasePrev_EstF - 1.96*sprevF,0)
-  #     CasePrevUB_F <- CasePrev_EstF + 1.96*sprevF
-  #
-  #     #
-  #     CasePrev_EstM <- sum(all_reg_data_yy$CasePrev_EstM, na.rm=T)
-  #     CasePrev_MedM <- sum(all_reg_data_yy$CasePrev_MedM, na.rm=T)
-  #
-  #     vprevM <- ((all_reg_data_yy$'CasePrev_UB_97.5%M'-all_reg_data_yy$'CasePrev_LB_2.5%M')/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM,na.rm=T))
-  #
-  #     CasePrevLB_M <- max(CasePrev_EstM - 1.96*sprevM,0)
-  #     CasePrevUB_M <- CasePrev_EstM + 1.96*sprevM
-  #
-  #     #
-  #     CasePrev_EstMF <- sum(all_reg_data_yy$'CasePrev_EstM+F', na.rm=T)
-  #     CasePrev_MedMF <- sum(all_reg_data_yy$'CasePrev_MedM+F', na.rm=T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$'CasePrev_UB_97.5%M+F'-all_reg_data_yy$'CasePrev_LB_2.5%M+F')/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF,na.rm=T))
-  #
-  #     CasePrevLB_MF <- max(CasePrev_EstMF - 1.96*sprevMF,0)
-  #     CasePrevUB_MF <- CasePrev_EstMF + 1.96*sprevMF
-  #
-  #     #
-  #     EstimateIncF <- weighted.mean(all_reg_data_yy$EstimateIncF,dplyr::coalesce(all_reg_data_yy$`NationalPop15-49yF`,0),na.rm=T)
-  #     MedianIncF <- median(all_reg_data_yy$MedianIncF,na.rm = T)
-  #
-  #     vprevF <- ((all_reg_data_yy$`IncUB_97.5%F`-all_reg_data_yy$`IncLB_2.5%F`)/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF*all_reg_data_yy$`NationalPop15-49yF`^2,na.rm=T)/sum(all_reg_data_yy$`NationalPop15-49yF`,na.rm=T)^2)
-  #
-  #     IncLB_F <- max(EstimateIncF-1.96*sprevF,0)
-  #     IncUB_F <- min(EstimateIncF+1.96*sprevF,1)
-  #
-  #     #
-  #     EstimateIncM <- weighted.mean(all_reg_data_yy$EstimateIncM,dplyr::coalesce(all_reg_data_yy$`NationalPop15-49yM`,0),na.rm=T)
-  #     MedianIncM <- median(all_reg_data_yy$MedianIncM,na.rm = T)
-  #
-  #     vprevM <- ((all_reg_data_yy$`IncUB_97.5%M`-all_reg_data_yy$`IncLB_2.5%M`)/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM*all_reg_data_yy$`NationalPop15-49yM`^2,na.rm=T)/sum(all_reg_data_yy$`NationalPop15-49yM`,na.rm=T)^2)
-  #
-  #     IncLB_M <- max(EstimateIncM-1.96*sprevM,0)
-  #     IncUB_M <- min(EstimateIncM+1.96*sprevM,1)
-  #
-  #     #
-  #     EstimateIncMF <- weighted.mean(all_reg_data_yy$'EstimateIncM+F',dplyr::coalesce(all_reg_data_yy$`NationalPop15-49yM+F`,0),na.rm=T)
-  #     MedianIncMF <- median(all_reg_data_yy$'MedianIncM+F',na.rm = T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$`IncUB_97.5%M+F`-all_reg_data_yy$`IncLB_2.5%M+F`)/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF*all_reg_data_yy$`NationalPop15-49yM+F`^2,na.rm=T)/sum(all_reg_data_yy$`NationalPop15-49yM+F`,na.rm=T)^2)
-  #
-  #     IncLB_MF <- max(EstimateIncMF-1.96*sprevMF,0)
-  #     IncUB_MF <- min(EstimateIncMF+1.96*sprevMF,1)
-  #
-  #     #
-  #     CaseInc_EstF <- sum(all_reg_data_yy$CaseInc_EstF, na.rm=T)
-  #     CaseInc_MedF <- sum(all_reg_data_yy$CaseInc_MedF, na.rm=T)
-  #
-  #     vprevF <- ((all_reg_data_yy$`CaseInc_UB_97.5%F`-all_reg_data_yy$`CaseInc_LB_2.5%F`)/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF,na.rm=T))
-  #
-  #     CaseInc_LB_F <- max(CaseInc_EstF - 1.96*sprevF,0)
-  #     CaseInc_UB_F <- CaseInc_EstF + 1.96*sprevF
-  #
-  #     #
-  #     CaseInc_EstM <- sum(all_reg_data_yy$CaseInc_EstM, na.rm=T)
-  #     CaseInc_MedM <- sum(all_reg_data_yy$CaseInc_MedM, na.rm=T)
-  #
-  #     vprevM <- ((all_reg_data_yy$`CaseInc_UB_97.5%M`-all_reg_data_yy$`CaseInc_LB_2.5%M`)/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM,na.rm=T))
-  #
-  #     CaseInc_LB_M <- max(CaseInc_EstM - 1.96*sprevM,0)
-  #     CaseInc_UB_M <- CaseInc_EstM + 1.96*sprevM
-  #
-  #     #
-  #     CaseInc_EstMF <- sum(all_reg_data_yy$'CaseInc_EstM+F', na.rm=T)
-  #     CaseInc_MedMF <- sum(all_reg_data_yy$'CaseInc_MedM+F', na.rm=T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$`CaseInc_UB_97.5%M+F`-all_reg_data_yy$`CaseInc_LB_2.5%M+F`)/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF,na.rm=T))
-  #
-  #     CaseInc_LB_MF <- max(CaseInc_EstMF - 1.96*sprevMF,0)
-  #     CaseInc_UB_MF <- CaseInc_EstMF + 1.96*sprevMF
-  #
-  #     #
-  #     NationalPop1549yF <- sum(all_reg_data_yy$'NationalPop15-49yF', na.rm=T)
-  #     NationalPop1549yM <- sum(all_reg_data_yy$'NationalPop15-49yM', na.rm=T)
-  #     NationalPop1549yMF <- sum(all_reg_data_yy$'NationalPop15-49yM+F', na.rm=T)
-  #
-  #     temp <- data.matrix(matrix(c(EstimatePrevF, MedianPrevF, PrevLB_F, PrevUB_F, EstimatePrevM, MedianPrevM, PrevLB_M, PrevUB_M, EstimatePrevMF, MedianPrevMF,
-  #                                  PrevLB_MF, PrevUB_MF, CasePrev_EstF, CasePrev_MedF, CasePrevLB_F, CasePrevUB_F, CasePrev_EstM, CasePrev_MedM, CasePrevLB_M,
-  #                                  CasePrevUB_M, CasePrev_EstMF, CasePrev_MedMF, CasePrevLB_MF, CasePrevUB_MF, EstimateIncF, MedianIncF, IncLB_F, IncUB_F, EstimateIncM,
-  #                                  MedianIncM, IncLB_M, IncUB_M, EstimateIncMF, MedianIncMF, IncLB_MF, IncUB_MF, CaseInc_EstF, CaseInc_MedF, CaseInc_LB_F, CaseInc_UB_F,
-  #                                  CaseInc_EstM, CaseInc_MedM, CaseInc_LB_M, CaseInc_UB_M, CaseInc_EstMF, CaseInc_MedMF, CaseInc_LB_MF, CaseInc_UB_MF, NationalPop1549yF,
-  #                                  NationalPop1549yM, NationalPop1549yMF), nrow=1))
-  #
-  #     colnames(temp) <- c("EstimatePrevF", "MedianPrevF",
-  #                         "PrevLB_2.5%F", "PrevUB_97.5%F", "EstimatePrevM",
-  #                         "MedianPrevM", "PrevLB_2.5%M", "PrevUB_97.5%M", "EstimatePrevM+F","MedianPrevM+F",
-  #                         "PrevLB_2.5%M+F", "PrevUB_97.5%M+F", "CasePrev_EstF", "CasePrev_MedF", "CasePrev_LB_2.5%F",
-  #                         "CasePrev_UB_97.5%F","CasePrev_EstM", "CasePrev_MedM", "CasePrev_LB_2.5%M", "CasePrev_UB_97.5%M",
-  #                         "CasePrev_EstM+F", "CasePrev_MedM+F", "CasePrev_LB_2.5%M+F", "CasePrev_UB_97.5%M+F", "EstimateIncF",
-  #                         "MedianIncF", "IncLB_2.5%F", "IncUB_97.5%F", "EstimateIncM", "MedianIncM", "IncLB_2.5%M",
-  #                         "IncUB_97.5%M","EstimateIncM+F", "MedianIncM+F", "IncLB_2.5%M+F", "IncUB_97.5%M+F",
-  #                         "CaseInc_EstF", "CaseInc_MedF", "CaseInc_LB_2.5%F", "CaseInc_UB_97.5%F", "CaseInc_EstM",
-  #                         "CaseInc_MedM", "CaseInc_LB_2.5%M", "CaseInc_UB_97.5%M", "CaseInc_EstM+F", "CaseInc_MedM+F",
-  #                         "CaseInc_LB_2.5%M+F", "CaseInc_UB_97.5%M+F","NationalPop15-49yF", "NationalPop15-49yM",
-  #                         "NationalPop15-49yM+F")
-  #
-  #     temp <- as.data.frame(temp)
-  #     alltemp <- data.frame(Country=NA,SDG_Region=reg,'ISO code'=NA, Year=yy, check.names = F)
-  #
-  #     alltemp <- cbind(alltemp,temp)
-  #     RegDataPrevInc <- rbind(RegDataPrevInc,alltemp)
-  #   }
-  # }
-  #
-  # ##lobal
-  # #for(reg in unique(CongenDataOut$`WHO Region`))
-  # {
-  #   reg <- "Global"
-  #   all_reg_data <- CongenDataOut
-  #   for(yy in unique(CongenDataOut$Year))
-  #   {
-  #     all_reg_data_yy <- subset(all_reg_data,Year==yy)
-  #     EstimatePrevF <- weighted.mean(all_reg_data_yy$'EstimatePrevF',dplyr::coalesce(all_reg_data_yy$'NationalPop15-49yF',0),na.rm=T)
-  #     MedianPrevF <- median(all_reg_data_yy$'EstimatePrevF',na.rm = T)
-  #
-  #     vprevF <- ((all_reg_data_yy$'PrevUB_97.5%F'-all_reg_data_yy$'PrevLB_2.5%F')/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF*all_reg_data_yy$'NationalPop15-49yF'^2,na.rm=T)/sum(all_reg_data_yy$'NationalPop15-49yF',na.rm=T)^2)
-  #
-  #     PrevLB_F <- max(EstimatePrevF-1.96*sprevF,0)
-  #     PrevUB_F <- min(EstimatePrevF+1.96*sprevF,1)
-  #
-  #     #
-  #     EstimatePrevM <- weighted.mean(all_reg_data_yy$'EstimatePrevM',dplyr::coalesce(all_reg_data_yy$'NationalPop15-49yM',0),na.rm=T)
-  #     MedianPrevM <- median(all_reg_data_yy$'EstimatePrevM',na.rm = T)
-  #
-  #     vprevM <- ((all_reg_data_yy$'PrevUB_97.5%M'-all_reg_data_yy$'PrevLB_2.5%M')/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM*all_reg_data_yy$'NationalPop15-49yM'^2,na.rm=T)/sum(all_reg_data_yy$'NationalPop15-49yM',na.rm=T)^2)
-  #
-  #     PrevLB_M <- max(EstimatePrevM-1.96*sprevM,0)
-  #     PrevUB_M <- min(EstimatePrevM+1.96*sprevM,1)
-  #
-  #     #
-  #     EstimatePrevMF <- weighted.mean(all_reg_data_yy$'EstimatePrevM+F',dplyr::coalesce(all_reg_data_yy$'NationalPop15-49yM+F',0),na.rm=T)
-  #     MedianPrevMF <- median(all_reg_data_yy$'EstimatePrevM+F',na.rm = T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$'PrevUB_97.5%M+F'-all_reg_data_yy$'PrevLB_2.5%M+F')/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF*all_reg_data_yy$'NationalPop15-49yM+F'^2,na.rm=T)/sum(all_reg_data_yy$'NationalPop15-49yM+F',na.rm=T)^2)
-  #
-  #     PrevLB_MF <- max(EstimatePrevMF-1.96*sprevMF,0)
-  #     PrevUB_MF <- min(EstimatePrevMF+1.96*sprevM,1)
-  #
-  #     #
-  #     CasePrev_EstF <- sum(all_reg_data_yy$CasePrev_EstF, na.rm=T)
-  #     CasePrev_MedF <- sum(all_reg_data_yy$CasePrev_MedF, na.rm=T)
-  #
-  #     vprevF <- ((all_reg_data_yy$'CasePrev_UB_97.5%F'-all_reg_data_yy$'CasePrev_LB_2.5%F')/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF,na.rm=T))
-  #
-  #     CasePrevLB_F <- max(CasePrev_EstF - 1.96*sprevF,0)
-  #     CasePrevUB_F <- CasePrev_EstF + 1.96*sprevF
-  #
-  #     #
-  #     CasePrev_EstM <- sum(all_reg_data_yy$CasePrev_EstM, na.rm=T)
-  #     CasePrev_MedM <- sum(all_reg_data_yy$CasePrev_MedM, na.rm=T)
-  #
-  #     vprevM <- ((all_reg_data_yy$'CasePrev_UB_97.5%M'-all_reg_data_yy$'CasePrev_LB_2.5%M')/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM,na.rm=T))
-  #
-  #     CasePrevLB_M <- max(CasePrev_EstM - 1.96*sprevM,0)
-  #     CasePrevUB_M <- CasePrev_EstM + 1.96*sprevM
-  #
-  #     #
-  #     CasePrev_EstMF <- sum(all_reg_data_yy$'CasePrev_EstM+F', na.rm=T)
-  #     CasePrev_MedMF <- sum(all_reg_data_yy$'CasePrev_MedM+F', na.rm=T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$'CasePrev_UB_97.5%M+F'-all_reg_data_yy$'CasePrev_LB_2.5%M+F')/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF,na.rm=T))
-  #
-  #     CasePrevLB_MF <- max(CasePrev_EstMF - 1.96*sprevMF,0)
-  #     CasePrevUB_MF <- CasePrev_EstMF + 1.96*sprevMF
-  #
-  #     #
-  #     EstimateIncF <- weighted.mean(all_reg_data_yy$EstimateIncF,dplyr::coalesce(all_reg_data_yy$`NationalPop15-49yF`,0),na.rm=T)
-  #     MedianIncF <- median(all_reg_data_yy$MedianIncF,na.rm = T)
-  #
-  #     vprevF <- ((all_reg_data_yy$`IncUB_97.5%F`-all_reg_data_yy$`IncLB_2.5%F`)/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF*all_reg_data_yy$`NationalPop15-49yF`^2,na.rm=T)/sum(all_reg_data_yy$`NationalPop15-49yF`,na.rm=T)^2)
-  #
-  #     IncLB_F <- max(EstimateIncF-1.96*sprevF,0)
-  #     IncUB_F <- min(EstimateIncF+1.96*sprevF,1)
-  #
-  #     #
-  #     EstimateIncM <- weighted.mean(all_reg_data_yy$EstimateIncM,dplyr::coalesce(all_reg_data_yy$`NationalPop15-49yM`,0),na.rm=T)
-  #     MedianIncM <- median(all_reg_data_yy$MedianIncM,na.rm = T)
-  #
-  #     vprevM <- ((all_reg_data_yy$`IncUB_97.5%M`-all_reg_data_yy$`IncLB_2.5%M`)/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM*all_reg_data_yy$`NationalPop15-49yM`^2,na.rm=T)/sum(all_reg_data_yy$`NationalPop15-49yM`,na.rm=T)^2)
-  #
-  #     IncLB_M <- max(EstimateIncM-1.96*sprevM,0)
-  #     IncUB_M <- min(EstimateIncM+1.96*sprevM,1)
-  #
-  #     #
-  #     EstimateIncMF <- weighted.mean(all_reg_data_yy$'EstimateIncM+F',dplyr::coalesce(all_reg_data_yy$`NationalPop15-49yM+F`,0),na.rm=T)
-  #     MedianIncMF <- median(all_reg_data_yy$'MedianIncM+F',na.rm = T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$`IncUB_97.5%M+F`-all_reg_data_yy$`IncLB_2.5%M+F`)/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF*all_reg_data_yy$`NationalPop15-49yM+F`^2,na.rm=T)/sum(all_reg_data_yy$`NationalPop15-49yM+F`,na.rm=T)^2)
-  #
-  #     IncLB_MF <- max(EstimateIncMF-1.96*sprevMF,0)
-  #     IncUB_MF <- min(EstimateIncMF+1.96*sprevMF,1)
-  #
-  #     #
-  #     CaseInc_EstF <- sum(all_reg_data_yy$CaseInc_EstF, na.rm=T)
-  #     CaseInc_MedF <- sum(all_reg_data_yy$CaseInc_MedF, na.rm=T)
-  #
-  #     vprevF <- ((all_reg_data_yy$`CaseInc_UB_97.5%F`-all_reg_data_yy$`CaseInc_LB_2.5%F`)/1.96/2)^2
-  #     sprevF <- sqrt(sum(vprevF,na.rm=T))
-  #
-  #     CaseInc_LB_F <- max(CaseInc_EstF - 1.96*sprevF,0)
-  #     CaseInc_UB_F <- CaseInc_EstF + 1.96*sprevF
-  #
-  #     #
-  #     CaseInc_EstM <- sum(all_reg_data_yy$CaseInc_EstM, na.rm=T)
-  #     CaseInc_MedM <- sum(all_reg_data_yy$CaseInc_MedM, na.rm=T)
-  #
-  #     vprevM <- ((all_reg_data_yy$`CaseInc_UB_97.5%M`-all_reg_data_yy$`CaseInc_LB_2.5%M`)/1.96/2)^2
-  #     sprevM <- sqrt(sum(vprevM,na.rm=T))
-  #
-  #     CaseInc_LB_M <- max(CaseInc_EstM - 1.96*sprevM,0)
-  #     CaseInc_UB_M <- CaseInc_EstM + 1.96*sprevM
-  #
-  #     #
-  #     CaseInc_EstMF <- sum(all_reg_data_yy$'CaseInc_EstM+F', na.rm=T)
-  #     CaseInc_MedMF <- sum(all_reg_data_yy$'CaseInc_MedM+F', na.rm=T)
-  #
-  #     vprevMF <- ((all_reg_data_yy$`CaseInc_UB_97.5%M+F`-all_reg_data_yy$`CaseInc_LB_2.5%M+F`)/1.96/2)^2
-  #     sprevMF <- sqrt(sum(vprevMF,na.rm=T))
-  #
-  #     CaseInc_LB_MF <- max(CaseInc_EstMF - 1.96*sprevMF,0)
-  #     CaseInc_UB_MF <- CaseInc_EstMF + 1.96*sprevMF
-  #
-  #     #
-  #     NationalPop1549yF <- sum(all_reg_data_yy$'NationalPop15-49yF', na.rm=T)
-  #     NationalPop1549yM <- sum(all_reg_data_yy$'NationalPop15-49yM', na.rm=T)
-  #     NationalPop1549yMF <- sum(all_reg_data_yy$'NationalPop15-49yM+F', na.rm=T)
-  #
-  #     temp <- data.matrix(matrix(c(EstimatePrevF, MedianPrevF, PrevLB_F, PrevUB_F, EstimatePrevM, MedianPrevM, PrevLB_M, PrevUB_M, EstimatePrevMF, MedianPrevMF,
-  #                                  PrevLB_MF, PrevUB_MF, CasePrev_EstF, CasePrev_MedF, CasePrevLB_F, CasePrevUB_F, CasePrev_EstM, CasePrev_MedM, CasePrevLB_M,
-  #                                  CasePrevUB_M, CasePrev_EstMF, CasePrev_MedMF, CasePrevLB_MF, CasePrevUB_MF, EstimateIncF, MedianIncF, IncLB_F, IncUB_F, EstimateIncM,
-  #                                  MedianIncM, IncLB_M, IncUB_M, EstimateIncMF, MedianIncMF, IncLB_MF, IncUB_MF, CaseInc_EstF, CaseInc_MedF, CaseInc_LB_F, CaseInc_UB_F,
-  #                                  CaseInc_EstM, CaseInc_MedM, CaseInc_LB_M, CaseInc_UB_M, CaseInc_EstMF, CaseInc_MedMF, CaseInc_LB_MF, CaseInc_UB_MF, NationalPop1549yF,
-  #                                  NationalPop1549yM, NationalPop1549yMF), nrow=1))
-  #
-  #     colnames(temp) <- c("EstimatePrevF", "MedianPrevF",
-  #                         "PrevLB_2.5%F", "PrevUB_97.5%F", "EstimatePrevM",
-  #                         "MedianPrevM", "PrevLB_2.5%M", "PrevUB_97.5%M", "EstimatePrevM+F","MedianPrevM+F",
-  #                         "PrevLB_2.5%M+F", "PrevUB_97.5%M+F", "CasePrev_EstF", "CasePrev_MedF", "CasePrev_LB_2.5%F",
-  #                         "CasePrev_UB_97.5%F","CasePrev_EstM", "CasePrev_MedM", "CasePrev_LB_2.5%M", "CasePrev_UB_97.5%M",
-  #                         "CasePrev_EstM+F", "CasePrev_MedM+F", "CasePrev_LB_2.5%M+F", "CasePrev_UB_97.5%M+F", "EstimateIncF",
-  #                         "MedianIncF", "IncLB_2.5%F", "IncUB_97.5%F", "EstimateIncM", "MedianIncM", "IncLB_2.5%M",
-  #                         "IncUB_97.5%M","EstimateIncM+F", "MedianIncM+F", "IncLB_2.5%M+F", "IncUB_97.5%M+F",
-  #                         "CaseInc_EstF", "CaseInc_MedF", "CaseInc_LB_2.5%F", "CaseInc_UB_97.5%F", "CaseInc_EstM",
-  #                         "CaseInc_MedM", "CaseInc_LB_2.5%M", "CaseInc_UB_97.5%M", "CaseInc_EstM+F", "CaseInc_MedM+F",
-  #                         "CaseInc_LB_2.5%M+F", "CaseInc_UB_97.5%M+F","NationalPop15-49yF", "NationalPop15-49yM",
-  #                         "NationalPop15-49yM+F")
-  #
-  #     temp <- as.data.frame(temp)
-  #     alltemp <- data.frame(Country=NA,SDG_Region=reg,'ISO code'=NA, Year=yy, check.names = F)
-  #
-  #     alltemp <- cbind(alltemp,temp)
-  #     RegDataPrevInc <- rbind(RegDataPrevInc,alltemp)
-  #   }
-  # }
-  #
-  # ################################################################################
-  # ################################################################################
-  # var_names_for_long <- c("Prevalence (%)", "Prevalence (%)","Prevalence (%)",
-  #                         "Prevalence cases (#)", "Prevalence cases (#)", "Prevalence cases (#)",
-  #                         "Incidence rate", "Incidence rate","Incidence rate",
-  #                         "Incidence cases", "Incidence cases", "Incidence cases")
-  #
-  # var_names_sexes <- c("Males", "Females","Both sexes",
-  #                      "Males", "Females","Both sexes",
-  #                      "Males", "Females","Both sexes",
-  #                      "Males", "Females","Both sexes")
-  #
-  # idxtoplot <- list(c("EstimatePrevF", "PrevLB_2.5%F", "PrevUB_97.5%F"),
-  #                   c("EstimatePrevM", "PrevLB_2.5%M", "PrevUB_97.5%M"),
-  #                   c("EstimatePrevM+F", "PrevLB_2.5%M+F", "PrevUB_97.5%M+F"),
-  #                   c("CasePrev_EstF", "CasePrev_LB_2.5%F",  "CasePrev_UB_97.5%F"),
-  #                   c("CasePrev_EstM", "CasePrev_LB_2.5%M",  "CasePrev_UB_97.5%M"),
-  #                   c("CasePrev_EstM+F", "CasePrev_LB_2.5%M+F",  "CasePrev_UB_97.5%M+F"),
-  #                   c("EstimateIncF", "IncLB_2.5%F", "IncUB_97.5%F"),
-  #                   c("EstimateIncM", "IncLB_2.5%M", "IncUB_97.5%M"),
-  #                   c("EstimateIncM+F", "IncLB_2.5%M+F", "IncUB_97.5%M+F"),
-  #                   c("CaseInc_EstF", "CaseInc_LB_2.5%F", "CaseInc_UB_97.5%F"),
-  #                   c("CaseInc_EstM", "CaseInc_LB_2.5%M", "CaseInc_UB_97.5%M"),
-  #                   c("CaseInc_EstM+F", "CaseInc_LB_2.5%M+F", "CaseInc_UB_97.5%M+F")
-  #
-  # )
-  #
-  # LongRegDataPrevIncForPlots <- data.frame()
-  # for(ii in seq_len(length(idxtoplot)))
-  # {
-  #   v_name <- var_names_for_long[ii];
-  #   idxb <- which(names(RegDataPrevInc)==idxtoplot[[ii]][1])
-  #   idxlb <- which(names(RegDataPrevInc)==idxtoplot[[ii]][2])
-  #   idxub <- which(names(RegDataPrevInc)==idxtoplot[[ii]][3])
-  #
-  #   temp_data <- RegDataPrevInc[,which(is.element(names(RegDataPrevInc),c("Country", "SDG_Region","ISO code","Year")))]
-  #   temp_data$indicator <- v_name
-  #   temp_data$sex <- var_names_sexes[ii]
-  #   temp_data$value <- RegDataPrevInc[,idxb]
-  #   temp_data$lower <- RegDataPrevInc[,idxlb]
-  #   temp_data$upper <- RegDataPrevInc[,idxub]
-  #   LongRegDataPrevIncForPlots <- rbind(LongRegDataPrevIncForPlots,temp_data)
-  # }
-  #
-  # ##############################################################################
-  # ##############################################################################
-  # results$CongenDataOut <- CongenDataOut
-  # results$LongCongenDataOutForPlots <- LongCongenDataOutForPlots
-  # results$RegCSABO <- RegCSABO
-  # results$LongRegCSABO <- LongRegCSABO
-  # results$RegDataPrevInc <- RegDataPrevInc
-  # results$LongRegDataPrevIncForPlots <- LongRegDataPrevIncForPlots
-  # results$all_iso = all_countries_iso
-  #
-  # wb <- openxlsx::createWorkbook()
-  # nnames <- c("CS Estimates", "CS Estimates long format", "Regional CS ABO", "Regional CS ABO long",
-  #             "Reg. Prev. and Inc. Est.", "Reg. Prev. and Inc Est. long")
-  # for(ii in 1:6)
-  # {
-  #   sheet <- openxlsx::addWorksheet(wb,sheetName=nnames[ii])
-  #   temp_dat = results[[ii]]
-  #   openxlsx::writeData(wb,nnames[ii],data.matrix(temp_dat))
-  # }
-  #
-  # results$wb <- wb
-  # class(results) <- "CSProj"
-  # return(results)
 }
 
 #' Congenital Syphilis estimation and projection using results from the procedure RunFitSyphilis
@@ -4708,7 +3643,7 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
 #' @param proj_years integer vector of years for which estimates and projections are to be made. By default, this is the sequence 1990:2025
 #' @param min_year non-zero real number indicating the earliest year for data to be used. This is 2011 by default.
 #' @param rSyph_preg Ratio of Syphilis prevalence among all women to prevalence among pregnant women. This is 1 by default.
-#' @param CSinputfiles list of four file names for (1) prevalence: syphilis prevalence used for prevalence estimates, (2) screening: data for Syphilis screen among pregnant women, (3) csdb: congenital syphilis prevalence, and (4) allbirths: all births by country. By default, this is set to NULL, which means data 2023 default data bases are used.
+#' @param CSinputfiles list of four file names for (1) prevalence: syphilis prevalence used for prevalence estimates, (2) screening: data for Syphilis screen among pregnant women, (3) csdb: congenital syphilis prevalence, and (4) demographics: all demographic data, including all births by country. By default, this is set to NULL, which means data 2023 default data bases are used.
 #' @return A list of class "CSProj", of dataframes CongenDataOut, LongCongenDataOutForPlots, RegCSABO, LongRegCSABO, RegDataPrevInc, LongRegDataPrevIncForPlots containing national and regional congenital Syphilis estimates.
 #' @examples Not available
 CalcCS <- function(syphfitobj, list_countries=NULL, proj_years=1990:2025, min_year=2011, rSyph_preg=1, CSinputfiles=NULL)
@@ -4745,10 +3680,977 @@ saveCS <- function(xCSProj, fname=NULL)
   return("File saved")
 }
 
+#' Plot Syphilis prevalence trends estimates by country
+#'
+#' @param list of class "Syph-fit" (containing a file name and the data used to run the fits)
+#' @param ctrname Country's alpha-numeric ISO code.
+#' @param sex A character indicating the sex for which estimates are to be drawn. Accepted values are "both" (both sexes, default), "males" and "females".
+#' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
+#' @return plot, object from ggplot
+#' @examples Not available
+plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
+{
+  require(ggplot2)
+  library(tidyverse)
+  library(scales)
+  library(gridExtra)
+  library(cowplot)
+
+  if(length(ctr_iso3)!=1)
+  {
+    stop("length(ctr_iso3) must be 1")
+  }
+
+  llev_y <- as.factor(years)
+  num_y <- as.numeric(as.character(llev_y))
+
+  mout_file <- syphfits$wb;
+  SyphData <- syphfits$SyphData
+  #df=xCSProj$LongCongenDataOutForPlots
+  ctr <- ctr_iso3
+
+  all_res <- openxlsx::read.xlsx(mout_file,sheet="SYPH_RBootstrap_All")
+  all_res$datatype <- "Model"
+  all_res$weight <- 1
+
+  #Prevalence rate
+  names(all_res)[names(all_res)=="MedianPrevF"] = "PrevMed_Females"
+  names(all_res)[names(all_res)=="EstimatePrevF"] = "PrevEst_Females"
+  names(all_res)[names(all_res)=="PrevLB_2.5%F"] = "PrevLB_Females"
+  names(all_res)[names(all_res)=="PrevUB_97.5%F"] = "PrevUB_Females"
+
+  names(all_res)[names(all_res)=="MedianPrevM"] = "PrevMed_Males"
+  names(all_res)[names(all_res)=="EstimatePrevM"] = "PrevEst_Males"
+  names(all_res)[names(all_res)=="PrevLB_2.5%M"] = "PrevLB_Males"
+  names(all_res)[names(all_res)=="PrevUB_97.5%M"] = "PrevUB_Males"
+
+  names(all_res)[names(all_res)=="MedianPrevM+F"] = "PrevMed_BothSexes"
+  names(all_res)[names(all_res)=="EstimatePrevM+F"] = "PrevEst_BothSexes"
+  names(all_res)[names(all_res)=="PrevLB_2.5%M+F"] = "PrevLB_BothSexes"
+  names(all_res)[names(all_res)=="PrevUB_97.5%M+F"] = "PrevUB_BothSexes"
+
+  #Case prevalence
+  names(all_res)[names(all_res)=="CasePrev_EstF"] = "CasePrevEst_Females"
+  names(all_res)[names(all_res)=="CasePrev_MedF"] = "CasePrevMed_Females"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%F"] = "CasePrevLB_Females"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%F"] = "CasePrevUB_Females"
+
+  names(all_res)[names(all_res)=="CasePrev_EstM"] = "CasePrevEst_Males"
+  names(all_res)[names(all_res)=="CasePrev_MedM"] = "CasePrevMed_Males"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%M"] = "CasePrevLB_Males"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%M"] = "CasePrevUB_Males"
+
+  names(all_res)[names(all_res)=="CasePrev_EstM+F"] = "CasePrevEst_BothSexes"
+  names(all_res)[names(all_res)=="CasePrev_MedM+F"] = "CasePrevMed_BothSexes"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%M+F"] = "CasePrevLB_BothSexes"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%M+F"] = "CasePrevUB_BothSexes"
+
+  #Incidence rates
+  names(all_res)[names(all_res)=="EstimateIncF"] = "InciMed_Females"
+  names(all_res)[names(all_res)=="MedianIncF"] = "InciEst_Females"
+  names(all_res)[names(all_res)=="IncLB_2.5%F"] = "InciLB_Females"
+  names(all_res)[names(all_res)=="IncUB_97.5%F"] = "InciUB_Females"
+
+  names(all_res)[names(all_res)=="EstimateIncM"] = "InciMed_Males"
+  names(all_res)[names(all_res)=="MedianIncM"] = "InciEst_Males"
+  names(all_res)[names(all_res)=="IncLB_2.5%M"] = "InciLB_Males"
+  names(all_res)[names(all_res)=="IncUB_97.5%M"] = "InciUB_Males"
+
+  names(all_res)[names(all_res)=="EstimateIncM+F"] = "InciMed_BothSexes"
+  names(all_res)[names(all_res)=="MedianIncM+F"] = "InciEst_BothSexes"
+  names(all_res)[names(all_res)=="IncLB_2.5%M+F"] = "InciLB_BothSexes"
+  names(all_res)[names(all_res)=="IncUB_97.5%M+F"] = "InciUB_BothSexes"
+
+  #Incidence cases
+  names(all_res)[names(all_res)=="CaseInc_EstF"] = "CaseInciMed_Females"
+  names(all_res)[names(all_res)=="CaseInc_MedF"] = "CaseInciEst_Females"
+  names(all_res)[names(all_res)=="CaseInc_LB_2.5%F"] = "CaseInciLB_Females"
+  names(all_res)[names(all_res)=="CaseInc_UB_97.5%F"] = "CaseInciUB_Females"
+
+  names(all_res)[names(all_res)=="CaseInc_EstM"] = "CaseInciMed_Males"
+  names(all_res)[names(all_res)=="CaseInc_MedM"] = "CaseInciEst_Males"
+  names(all_res)[names(all_res)=="CaseInc_LB_2.5%M"] = "CaseInciLB_Males"
+  names(all_res)[names(all_res)=="CaseInc_UB_97.5%M"] = "CaseInciUB_Males"
+
+  names(all_res)[names(all_res)=="CaseInc_EstM+F"] = "CaseInciMed_BothSexes"
+  names(all_res)[names(all_res)=="CaseInc_MedM+F"] = "CaseInciEst_BothSexes"
+  names(all_res)[names(all_res)=="CaseInc_LB_2.5%M+F"] = "CaseInciLB_BothSexes"
+  names(all_res)[names(all_res)=="CaseInc_UB_97.5%M+F"] = "CaseInciUB_BothSexes"
+
+  names(all_res)[names(all_res)=="EstimatePrevFSW"] = "PrevEst_FSW"
+  names(all_res)[names(all_res)=="MedianPrevFSW"] = "PrevMed_FSW"
+  names(all_res)[names(all_res)=="PrevLB_2.5%FSW"] = "PrevLB_FSW"
+  names(all_res)[names(all_res)=="PrevUB_97.5%FSW"] = "PrevUB_FSW"
+
+  names(all_res)[names(all_res)=="EstimatePrevMSM"] = "PrevEst_MSM"
+  names(all_res)[names(all_res)=="MedianPrevMSM"] = "PrevMed_MSM"
+  names(all_res)[names(all_res)=="PrevLB_2.5%MSM"] = "PrevLB_MSM"
+  names(all_res)[names(all_res)=="PrevUB_97.5%MSM"] = "PrevUB_MSM"
+
+
+  names(all_res)[names(all_res)=="CasePrev_EstFSW"] = "CasePrevEst_FSW"
+  names(all_res)[names(all_res)=="CasePrev_MedFSW"] = "CasePrevMed_FSW"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%FSW"] = "CasePrevLB_FSW"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%FSW"] = "CasePrevUB_FSW"
+
+
+  names(all_res)[names(all_res)=="CasePrev_EstMSM"] = "CasePrevEst_MSM"
+  names(all_res)[names(all_res)=="CasePrev_MedMSM"] = "CasePrevMed_MSM"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%MSM"] = "CasePrevLB_MSM"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%MSM"] = "CasePrevUB_MSM"
+
+  if(!(sex%in%c("both", "males", "females"))) return(NULL)
+
+  #long_all_res <- data.frame()
+  temp_long_ctr <- ctr_df <- subset(all_res, ISO3==ctr_iso3)
+
+
+  if(nrow(ctr_df)==0) return(NULL)
+  ctr <- ctr_df$Country[1]
+
+  long_ctr_men <- data.frame(Country = ctr,
+                             sex = "Males",
+                             population = "All",
+                             datatype = "Model",
+                             weight = 1,
+                             Year =c(temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year),
+                             indicator = rep(c("CaseIncidence","IncidenceRate","CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),4)),
+                             Median = c(temp_long_ctr$CaseInciMed_Males,temp_long_ctr$InciMed_Males,temp_long_ctr$CasePrevMed_Males,temp_long_ctr$PrevMed_Males),
+                             BestFit = c(temp_long_ctr$CaseInciEst_Males,temp_long_ctr$InciEst_Males,temp_long_ctr$CasePrevEst_Males,temp_long_ctr$PrevEst_Males),
+                             Lower = c(temp_long_ctr$CaseInciLB_Males,temp_long_ctr$InciLB_Males,temp_long_ctr$CasePrevLB_Males,temp_long_ctr$PrevLB_Males),
+                             Upper = c(temp_long_ctr$CaseInciUB_Males,temp_long_ctr$InciUB_Males,temp_long_ctr$CasePrevUB_Males,temp_long_ctr$PrevUB_Males)
+  )
+
+  long_ctr_msm <- data.frame(Country = ctr,
+                             sex = "Males",
+                             population = "MSM",
+                             datatype = "Model",
+                             weight = 1,
+                             Year =c(temp_long_ctr$Year,temp_long_ctr$Year),
+                             indicator = rep(c("CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),2)),
+                             Median = c(temp_long_ctr$CasePrevMed_MSM,temp_long_ctr$PrevMed_MSM),
+                             BestFit = c(temp_long_ctr$CasePrevEst_MSM,temp_long_ctr$PrevEst_MSM),
+                             Lower = c(temp_long_ctr$CasePrevLB_MSM,temp_long_ctr$PrevLB_MSM),
+                             Upper = c(temp_long_ctr$CasePrevUB_MSM,temp_long_ctr$PrevUB_MSM)
+  )
+
+  long_ctr_women <- data.frame(Country = ctr,
+                               sex = "Females",
+                               population = "All",
+                               datatype = "Model",
+                               weight = 1,
+                               Year =c(temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year),
+                               indicator = rep(c("CaseIncidence","IncidenceRate","CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),4)),
+                               Median = c(temp_long_ctr$CaseInciMed_Females,temp_long_ctr$InciMed_Females,temp_long_ctr$CasePrevMed_Females,temp_long_ctr$PrevMed_Females),
+                               BestFit = c(temp_long_ctr$CaseInciEst_Females,temp_long_ctr$InciEst_Females,temp_long_ctr$CasePrevEst_Females,temp_long_ctr$PrevEst_Females),
+                               Lower = c(temp_long_ctr$CaseInciLB_Females,temp_long_ctr$InciLB_Females,temp_long_ctr$CasePrevLB_Females,temp_long_ctr$PrevLB_Females),
+                               Upper = c(temp_long_ctr$CaseInciUB_Females,temp_long_ctr$InciUB_Females,temp_long_ctr$CasePrevUB_Females,temp_long_ctr$PrevUB_Females)
+  )
+
+  long_ctr_fsw <- data.frame(Country = ctr,
+                               sex = "Females",
+                               population = "FSW",
+                               datatype = "Model",
+                               weight = 1,
+                               Year =c(temp_long_ctr$Year,temp_long_ctr$Year),
+                               indicator = rep(c("CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),2)),
+                               Median = c(temp_long_ctr$CasePrevMed_FSW,temp_long_ctr$PrevMed_FSW),
+                               BestFit = c(temp_long_ctr$CasePrevEst_FSW,temp_long_ctr$PrevEst_FSW),
+                               Lower = c(temp_long_ctr$CasePrevLB_FSW,temp_long_ctr$PrevLB_FSW),
+                               Upper = c(temp_long_ctr$CasePrevUB_FSW,temp_long_ctr$PrevUB_FSW)
+  )
+
+  long_ctr_both <- data.frame(Country = ctr,
+                              sex = "BothSexes",
+                              population = "All",
+                              datatype = "Model",
+                              weight = 1,
+                              Year =c(temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year),
+                              indicator = rep(c("CaseIncidence","IncidenceRate","CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),4)),
+                              Median = c(temp_long_ctr$CaseInciMed_BothSexes,temp_long_ctr$InciMed_BothSexes,temp_long_ctr$CasePrevMed_BothSexes,temp_long_ctr$PrevMed_BothSexes),
+                              BestFit = c(temp_long_ctr$CaseInciEst_BothSexes,temp_long_ctr$InciEst_BothSexes,temp_long_ctr$CasePrevEst_BothSexes,temp_long_ctr$PrevEst_BothSexes),
+                              Lower = c(temp_long_ctr$CaseInciLB_BothSexes,temp_long_ctr$InciLB_BothSexes,temp_long_ctr$CasePrevLB_BothSexes,temp_long_ctr$PrevLB_BothSexes),
+                              Upper = c(temp_long_ctr$CaseInciUB_BothSexes,temp_long_ctr$InciUB_BothSexes,temp_long_ctr$CasePrevUB_BothSexes,temp_long_ctr$PrevUB_BothSexes)
+  )
+
+  long_ctr <- rbind(long_ctr_men,long_ctr_women,long_ctr_both)
+
+  min_year <- min(long_ctr$Year)
+  #Adding data points
+  temp_ctr <- subset(SyphData,Country==ctr & !is.na(Weight_for_Spectrum_fitting))
+  ppui <- temp_ctr$Prevalence
+  ppui[ppui<=0] = 1/100;
+
+  temp_all_res <- data.frame(Country = ctr,
+                             sex = NA,
+                             population = temp_ctr$Data_type,
+                             datatype = "Reported",#datatype = temp_ctr$Data_type,
+                             weight = temp_ctr$Weight_for_Spectrum_fitting,
+                             Year=temp_ctr$Year,
+                             indicator="PrevalenceRate",
+                             Median = temp_ctr$Prevalence/100,
+                             BestFit = temp_ctr$Prevalence/100,
+                             Lower = NA,
+                             Upper = NA
+  )
+
+  sdall <- sqrt(ppui/100*(1-ppui/100)/temp_ctr$N_tested)
+  sdall[is.na(sdall)] <- 0
+  temp_all_res$Lower <- pmax(temp_all_res$Median-1.96*sdall,0)
+  temp_all_res$Upper <- pmin(temp_all_res$Median+1.96*sdall,1)
+
+  temp_all_res$sex[temp_all_res$population=="ANC Routine screening"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="ANC Survey"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="BloodDonor Screening Men"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="FSW"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="MSM"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="Survey LowRisk Men"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="BloodDonor Screening Men + Women"] <- "BothSexes"
+  temp_all_res$sex[temp_all_res$population=="Male Sex Workers"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="MSM + MSW combined"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="PWID-Female"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="PWID-Male"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="Survey LowRisk Women"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="Trans-Genders"] <- "BothSexes"
+  temp_all_res$sex[temp_all_res$population=="BloodDonor Screening Women"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="Prisoners, Men"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="Prisoners, Women"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="Wives of PWID"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="Survey LowRisk Men+Women"] <- "BothSexes"
+  temp_all_res$sex[temp_all_res$population=="MSM"] <- "Males"
+  temp_all_res$sex[temp_all_res$population=="FSW"] <- "Females"
+  temp_all_res$sex[temp_all_res$population=="Other"] <- "BothSexes"
+
+
+  long_ctr <- data.frame();
+  #mtitle <- paste(ctr," Syphilis prevalence trend among adults (15-49 y)", sep=",")
+  mtitle <- "Syphilis prevalence trend among adults (15-49 y)"
+
+  if(sex=="both")
+  {
+    long_ctr <- rbind(long_ctr_both, temp_all_res)
+  } else if(sex=="males")
+  {
+    long_ctr <- rbind(long_ctr_men,long_ctr_msm,temp_all_res)
+    long_ctr <- subset(long_ctr, sex=="Males")
+    #mtitle <- paste(ctr," Syphilis prevalence trend among males (15-49 y)", sep=",")
+    mtitle <- "Syphilis prevalence trend among males (15-49 y)"
+  } else if (sex=="females")
+  {
+    long_ctr <- rbind(long_ctr_women,long_ctr_fsw, temp_all_res)
+    long_ctr <- subset(long_ctr, sex=="Females")
+    #mtitle <- paste(ctr," Syphilis prevalence trend among females (15-49 y)", sep=",")
+    mtitle <- "Syphilis prevalence trend among females (15-49 y)"
+  }
+
+  long_ctr <- subset(long_ctr,Year>=min_year)
+  long_ctr$population <- factor(long_ctr$population, levels=c("All","ANC Routine screening","ANC Survey","BloodDonor Screening Men",
+                                                          "FSW","MSM","Survey LowRisk Men","BloodDonor Screening Men + Women",
+                                                          "Male Sex Workers","MSM + MSW combined","PWID-Female","PWID-Male",
+                                                          "Survey LowRisk Women","Trans-Genders","BloodDonor Screening Women",
+                                                          "Prisoners, Men","Prisoners, Women","Wives of PWID","Survey LowRisk Men+Women",
+                                                          "Other"))
+
+  all_plots_fig_S1 <- long_ctr%>%filter(Country==ctr & indicator=="PrevalenceRate")%>%ggplot(aes(x=Year, y=100*Median, ymin = 100*Lower, ymax= 100*Upper,color=population,fill=population))+
+    geom_line(data =. %>% filter(Country==ctr& datatype=="Model"), aes(Year, 100*BestFit)) +
+    geom_ribbon(data =. %>% filter(Country==ctr& datatype=="Model"),alpha=0.2,linetype=0)+
+    geom_pointrange(data =. %>% filter(Country==ctr& datatype!="Model"), position=position_jitter(w = 0.05, h = 0),#position=position_jitter(width=0.5),
+                    linetype='solid', aes(size=weight),size=0.75)+
+    expand_limits(y = 0) +
+    labs(title = mtitle, x = "Year", y="Test-adjusted prevalence, active syphilis (%)") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+
+  all_plots_fig_S1$labels$colour="Source"
+  all_plots_fig_S1$labels$fill="Source"
+
+  title <- ggdraw() +
+    draw_label(
+      ctr,
+      fontface = 'bold',
+      x = 0,
+      hjust = 0
+    ) +
+    theme(
+      # add margin on the left of the drawing canvas,
+      # so title is aligned with left edge of first plot
+      plot.margin = margin(2, 2, 2, 7)
+    )
+
+  all_plots_fig_S2 <- plot_grid(
+    title, all_plots_fig_S1,
+    ncol = 1,
+    # rel_heights values control vertical title margins
+    rel_heights = c(0.05, 1)
+    #rel_heights = c(1,2)
+  )
+
+  all_plots_fig_S2
+}
+
+
+#' Plot Syphilis incident cases trends estimates by country
+#'
+#' @param list of class "Syph-fit" (containing a file name and the data used to run the fits)
+#' @param ctrname Country's alpha-numeric ISO code.
+#' @param sex A character indicating the sex for which estimates are to be drawn. Accepted values are "both" (both sexes, default), "males" and "females".
+#' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
+#' @return plot, object from ggplot
+#' @examples Not available
+plot_ctr_SyphIncCases <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
+{
+  require(ggplot2)
+  library(tidyverse)
+  library(scales)
+  library(gridExtra)
+  library(cowplot)
+
+  if(length(ctr_iso3)!=1)
+  {
+    stop("length(ctr_iso3) must be 1")
+  }
+
+  llev_y <- as.factor(years)
+  num_y <- as.numeric(as.character(llev_y))
+
+  mout_file <- syphfits$wb;
+  SyphData <- syphfits$SyphData
+  #df=xCSProj$LongCongenDataOutForPlots
+  ctr <- ctr_iso3
+
+  all_res <- openxlsx::read.xlsx(mout_file,sheet="SYPH_RBootstrap_All")
+  all_res$datatype <- "Model"
+  all_res$weight <- 1
+
+  #Prevalence rate
+  names(all_res)[names(all_res)=="MedianPrevF"] = "PrevMed_Females"
+  names(all_res)[names(all_res)=="EstimatePrevF"] = "PrevEst_Females"
+  names(all_res)[names(all_res)=="PrevLB_2.5%F"] = "PrevLB_Females"
+  names(all_res)[names(all_res)=="PrevUB_97.5%F"] = "PrevUB_Females"
+
+  names(all_res)[names(all_res)=="MedianPrevM"] = "PrevMed_Males"
+  names(all_res)[names(all_res)=="EstimatePrevM"] = "PrevEst_Males"
+  names(all_res)[names(all_res)=="PrevLB_2.5%M"] = "PrevLB_Males"
+  names(all_res)[names(all_res)=="PrevUB_97.5%M"] = "PrevUB_Males"
+
+  names(all_res)[names(all_res)=="MedianPrevM+F"] = "PrevMed_BothSexes"
+  names(all_res)[names(all_res)=="EstimatePrevM+F"] = "PrevEst_BothSexes"
+  names(all_res)[names(all_res)=="PrevLB_2.5%M+F"] = "PrevLB_BothSexes"
+  names(all_res)[names(all_res)=="PrevUB_97.5%M+F"] = "PrevUB_BothSexes"
+
+  #Case prevalence
+  names(all_res)[names(all_res)=="CasePrev_EstF"] = "CasePrevEst_Females"
+  names(all_res)[names(all_res)=="CasePrev_MedF"] = "CasePrevMed_Females"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%F"] = "CasePrevLB_Females"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%F"] = "CasePrevUB_Females"
+
+  names(all_res)[names(all_res)=="CasePrev_EstM"] = "CasePrevEst_Males"
+  names(all_res)[names(all_res)=="CasePrev_MedM"] = "CasePrevMed_Males"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%M"] = "CasePrevLB_Males"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%M"] = "CasePrevUB_Males"
+
+  names(all_res)[names(all_res)=="CasePrev_EstM+F"] = "CasePrevEst_BothSexes"
+  names(all_res)[names(all_res)=="CasePrev_MedM+F"] = "CasePrevMed_BothSexes"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%M+F"] = "CasePrevLB_BothSexes"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%M+F"] = "CasePrevUB_BothSexes"
+
+  #Incidence rates
+  names(all_res)[names(all_res)=="EstimateIncF"] = "InciMed_Females"
+  names(all_res)[names(all_res)=="MedianIncF"] = "InciEst_Females"
+  names(all_res)[names(all_res)=="IncLB_2.5%F"] = "InciLB_Females"
+  names(all_res)[names(all_res)=="IncUB_97.5%F"] = "InciUB_Females"
+
+  names(all_res)[names(all_res)=="EstimateIncM"] = "InciMed_Males"
+  names(all_res)[names(all_res)=="MedianIncM"] = "InciEst_Males"
+  names(all_res)[names(all_res)=="IncLB_2.5%M"] = "InciLB_Males"
+  names(all_res)[names(all_res)=="IncUB_97.5%M"] = "InciUB_Males"
+
+  names(all_res)[names(all_res)=="EstimateIncM+F"] = "InciMed_BothSexes"
+  names(all_res)[names(all_res)=="MedianIncM+F"] = "InciEst_BothSexes"
+  names(all_res)[names(all_res)=="IncLB_2.5%M+F"] = "InciLB_BothSexes"
+  names(all_res)[names(all_res)=="IncUB_97.5%M+F"] = "InciUB_BothSexes"
+
+  #Incidence cases
+  names(all_res)[names(all_res)=="CaseInc_EstF"] = "CaseInciMed_Females"
+  names(all_res)[names(all_res)=="CaseInc_MedF"] = "CaseInciEst_Females"
+  names(all_res)[names(all_res)=="CaseInc_LB_2.5%F"] = "CaseInciLB_Females"
+  names(all_res)[names(all_res)=="CaseInc_UB_97.5%F"] = "CaseInciUB_Females"
+
+  names(all_res)[names(all_res)=="CaseInc_EstM"] = "CaseInciMed_Males"
+  names(all_res)[names(all_res)=="CaseInc_MedM"] = "CaseInciEst_Males"
+  names(all_res)[names(all_res)=="CaseInc_LB_2.5%M"] = "CaseInciLB_Males"
+  names(all_res)[names(all_res)=="CaseInc_UB_97.5%M"] = "CaseInciUB_Males"
+
+  names(all_res)[names(all_res)=="CaseInc_EstM+F"] = "CaseInciMed_BothSexes"
+  names(all_res)[names(all_res)=="CaseInc_MedM+F"] = "CaseInciEst_BothSexes"
+  names(all_res)[names(all_res)=="CaseInc_LB_2.5%M+F"] = "CaseInciLB_BothSexes"
+  names(all_res)[names(all_res)=="CaseInc_UB_97.5%M+F"] = "CaseInciUB_BothSexes"
+
+  names(all_res)[names(all_res)=="EstimatePrevFSW"] = "PrevEst_FSW"
+  names(all_res)[names(all_res)=="MedianPrevFSW"] = "PrevMed_FSW"
+  names(all_res)[names(all_res)=="PrevLB_2.5%FSW"] = "PrevLB_FSW"
+  names(all_res)[names(all_res)=="PrevUB_97.5%FSW"] = "PrevUB_FSW"
+
+  names(all_res)[names(all_res)=="EstimatePrevMSM"] = "PrevEst_MSM"
+  names(all_res)[names(all_res)=="MedianPrevMSM"] = "PrevMed_MSM"
+  names(all_res)[names(all_res)=="PrevLB_2.5%MSM"] = "PrevLB_MSM"
+  names(all_res)[names(all_res)=="PrevUB_97.5%MSM"] = "PrevUB_MSM"
+
+  names(all_res)[names(all_res)=="CasePrev_EstFSW"] = "CasePrevEst_FSW"
+  names(all_res)[names(all_res)=="CasePrev_MedFSW"] = "CasePrevMed_FSW"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%FSW"] = "CasePrevLB_FSW"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%FSW"] = "CasePrevUB_FSW"
+
+  names(all_res)[names(all_res)=="CasePrev_EstMSM"] = "CasePrevEst_MSM"
+  names(all_res)[names(all_res)=="CasePrev_MedMSM"] = "CasePrevMed_MSM"
+  names(all_res)[names(all_res)=="CasePrev_LB_2.5%MSM"] = "CasePrevLB_MSM"
+  names(all_res)[names(all_res)=="CasePrev_UB_97.5%MSM"] = "CasePrevUB_MSM"
+
+  if(!(sex%in%c("both", "males", "females"))) return(NULL)
+
+  #long_all_res <- data.frame()
+  temp_long_ctr <- ctr_df <- subset(all_res, ISO3==ctr_iso3)
+
+  if(nrow(ctr_df)==0) return(NULL)
+  ctr <- ctr_df$Country[1]
+
+  long_ctr_men <- data.frame(Country = ctr,
+                             sex = "Males",
+                             population = "All",
+                             datatype = "Model",
+                             weight = 1,
+                             Year =c(temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year),
+                             indicator = rep(c("CaseIncidence","IncidenceRate","CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),4)),
+                             Median = c(temp_long_ctr$CaseInciMed_Males,temp_long_ctr$InciMed_Males,temp_long_ctr$CasePrevMed_Males,temp_long_ctr$PrevMed_Males),
+                             BestFit = c(temp_long_ctr$CaseInciEst_Males,temp_long_ctr$InciEst_Males,temp_long_ctr$CasePrevEst_Males,temp_long_ctr$PrevEst_Males),
+                             Lower = c(temp_long_ctr$CaseInciLB_Males,temp_long_ctr$InciLB_Males,temp_long_ctr$CasePrevLB_Males,temp_long_ctr$PrevLB_Males),
+                             Upper = c(temp_long_ctr$CaseInciUB_Males,temp_long_ctr$InciUB_Males,temp_long_ctr$CasePrevUB_Males,temp_long_ctr$PrevUB_Males)
+  )
+
+  long_ctr_women <- data.frame(Country = ctr,
+                               sex = "Females",
+                               population = "All",
+                               datatype = "Model",
+                               weight = 1,
+                               Year =c(temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year),
+                               indicator = rep(c("CaseIncidence","IncidenceRate","CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),4)),
+                               Median = c(temp_long_ctr$CaseInciMed_Females,temp_long_ctr$InciMed_Females,temp_long_ctr$CasePrevMed_Females,temp_long_ctr$PrevMed_Females),
+                               BestFit = c(temp_long_ctr$CaseInciEst_Females,temp_long_ctr$InciEst_Females,temp_long_ctr$CasePrevEst_Females,temp_long_ctr$PrevEst_Females),
+                               Lower = c(temp_long_ctr$CaseInciLB_Females,temp_long_ctr$InciLB_Females,temp_long_ctr$CasePrevLB_Females,temp_long_ctr$PrevLB_Females),
+                               Upper = c(temp_long_ctr$CaseInciUB_Females,temp_long_ctr$InciUB_Females,temp_long_ctr$CasePrevUB_Females,temp_long_ctr$PrevUB_Females)
+  )
+
+
+  long_ctr_both <- data.frame(Country = ctr,
+                              sex = "BothSexes",
+                              population = "All",
+                              datatype = "Model",
+                              weight = 1,
+                              Year =c(temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year,temp_long_ctr$Year),
+                              indicator = rep(c("CaseIncidence","IncidenceRate","CasePrevalence", "PrevalenceRate"), rep(nrow(temp_long_ctr),4)),
+                              Median = c(temp_long_ctr$CaseInciMed_BothSexes,temp_long_ctr$InciMed_BothSexes,temp_long_ctr$CasePrevMed_BothSexes,temp_long_ctr$PrevMed_BothSexes),
+                              BestFit = c(temp_long_ctr$CaseInciEst_BothSexes,temp_long_ctr$InciEst_BothSexes,temp_long_ctr$CasePrevEst_BothSexes,temp_long_ctr$PrevEst_BothSexes),
+                              Lower = c(temp_long_ctr$CaseInciLB_BothSexes,temp_long_ctr$InciLB_BothSexes,temp_long_ctr$CasePrevLB_BothSexes,temp_long_ctr$PrevLB_BothSexes),
+                              Upper = c(temp_long_ctr$CaseInciUB_BothSexes,temp_long_ctr$InciUB_BothSexes,temp_long_ctr$CasePrevUB_BothSexes,temp_long_ctr$PrevUB_BothSexes)
+  )
+
+  long_ctr <- data.frame();
+  mtitle <- "Syphilis incident cases trend among adults (15-49 y)"
+
+  if(sex=="both")
+  {
+    long_ctr <- rbind(long_ctr_both)
+  } else if(sex=="males")
+  {
+    long_ctr <- rbind(long_ctr_men)
+    long_ctr <- subset(long_ctr, sex=="Males")
+    #mtitle <- paste(ctr," Syphilis prevalence trend among males (15-49 y)", sep=",")
+    mtitle <- "Syphilis incident cases trend among males (15-49 y)"
+  } else if (sex=="females")
+  {
+    long_ctr <- rbind(long_ctr_women)
+    long_ctr <- subset(long_ctr, sex=="Females")
+    #mtitle <- paste(ctr," Syphilis prevalence trend among females (15-49 y)", sep=",")
+    mtitle <- "Syphilis incident cases trend among females (15-49 y)"
+  }
+
+  #long_ctr <- subset(long_ctr,Year>=min_year)
+  long_ctr$population <- factor(long_ctr$population, levels=c("All","ANC Routine screening","ANC Survey","BloodDonor Screening Men",
+                                                              "FSW","MSM","Survey LowRisk Men","BloodDonor Screening Men + Women",
+                                                              "Male Sex Workers","MSM + MSW combined","PWID-Female","PWID-Male",
+                                                              "Survey LowRisk Women","Trans-Genders","BloodDonor Screening Women",
+                                                              "Prisoners, Men","Prisoners, Women","Wives of PWID","Survey LowRisk Men+Women",
+                                                              "Other"))
+
+  all_plots_fig_S1 <- long_ctr%>%filter(Country==ctr & indicator=="CaseIncidence")%>%ggplot(aes(x=Year, y=Median, ymin = Lower, ymax= Upper,color=population,fill=population))+
+    geom_line(data =. %>% filter(Country==ctr& datatype=="Model"), aes(Year, BestFit)) +
+    geom_ribbon(data =. %>% filter(Country==ctr& datatype=="Model"),alpha=0.2,linetype=0)+
+    geom_pointrange(data =. %>% filter(Country==ctr& datatype!="Model"), position=position_jitter(w = 0.05, h = 0),#position=position_jitter(width=0.5),
+                    linetype='solid', aes(size=weight),size=0.75)+
+    expand_limits(y = 0) +
+    labs(title = mtitle, x = "Year", y="New syphilis cases (/1000)") +
+    theme_minimal() +
+    theme(legend.position = "bottom")
+
+  all_plots_fig_S1$labels$colour="Source"
+  all_plots_fig_S1$labels$fill="Source"
+
+  title <- ggdraw() +
+    draw_label(
+      ctr,
+      fontface = 'bold',
+      x = 0,
+      hjust = 0
+    ) +
+    theme(
+      # add margin on the left of the drawing canvas,
+      # so title is aligned with left edge of first plot
+      plot.margin = margin(2, 2, 2, 7)
+    )
+
+  all_plots_fig_S2 <- plot_grid(
+    title, all_plots_fig_S1,
+    ncol = 1,
+    # rel_heights values control vertical title margins
+    rel_heights = c(0.05, 1)
+    #rel_heights = c(1,2)
+  )
+
+  all_plots_fig_S2
+}
+
+#' Plot EMTCT overview by country
+#'
+#' @param xCSProj object of class "CSProj". This is a list containing COngenital Syphilis estimates.
+#' @param ctr_iso3 Country's alpha-numeric ISO code.
+#' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
+#' @return plot, object from ggplot
+#' @examples Not available
+plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
+{
+  require(ggplot2)
+  library(tidyverse)
+  library(scales)
+  library(gridExtra)
+  library(cowplot)
+
+  if(length(ctr_iso3)!=1)
+  {
+    stop("length(ctr_iso3) must be 1")
+  }
+
+  llev_y <- as.factor(years)
+  num_y <- as.numeric(as.character(llev_y))
+  df=xCSProj$LongCongenDataOutForPlots
+  ctr <- ctr_iso3
+
+  dff_a <- subset(df,df$`ISO code`==ctr & indicator%in%c("Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)",
+                                                         "Syphilis-tested (1st ANC, %)","Women with >= 1 ANC visit (%)","Treated (%)") & Year%in%num_y & !is.na(value))
+  ctr_name <- df$Country[df$`ISO code`==ctr][1]
+
+  dff_a$value[dff_a$indicator=="Treated (%)"] <- dff_a$value[dff_a$indicator=="Treated (%)"]/100
+  dff_a$lower[dff_a$indicator=="Treated (%)"] <- dff_a$lower[dff_a$indicator=="Treated (%)"]/100
+  dff_a$upper[dff_a$indicator=="Treated (%)"] <- dff_a$upper[dff_a$indicator=="Treated (%)"]/100
+
+  dff_a$value[dff_a$indicator=="Syphilis-tested (1st ANC, %)"] <- dff_a$value[dff_a$indicator=="Syphilis-tested (1st ANC, %)"]/100
+  dff_a$lower[dff_a$indicator=="Syphilis-tested (1st ANC, %)"] <- dff_a$lower[dff_a$indicator=="Syphilis-tested (1st ANC, %)"]/100
+  dff_a$upper[dff_a$indicator=="Syphilis-tested (1st ANC, %)"] <- dff_a$upper[dff_a$indicator=="Syphilis-tested (1st ANC, %)"]/100
+
+  dff_a$value[dff_a$indicator=="Women with >= 1 ANC visit (%)"] <- dff_a$value[dff_a$indicator=="Women with >= 1 ANC visit (%)"]/100
+  dff_a$lower[dff_a$indicator=="Women with >= 1 ANC visit (%)"] <- dff_a$lower[dff_a$indicator=="Women with >= 1 ANC visit (%)"]/100
+  dff_a$upper[dff_a$indicator=="Women with >= 1 ANC visit (%)"] <- dff_a$upper[dff_a$indicator=="Women with >= 1 ANC visit (%)"]/100
+
+  dff_a$Year <- factor(dff_a$Year, levels=llev_y)
+  if(nrow(dff_a)<=0) return(NULL);
+  for(yy in llev_y)
+  {
+    if((!yy%in% as.character(unique(dff_a$Year))))
+    {
+      t_a <-  rbind(dff_a[1,],dff_a[1,],dff_a[1,],dff_a[1,])
+      t_a$Year <- yy
+      t_a$value <- 0
+      t_a$lower <- NA
+      t_a$upper <- NA
+      t_a$indicator=c("Treated (%)","Maternal syphilis prevalence","Syphilis-tested (1st ANC, %)","Women with >= 1 ANC visit (%)")
+      dff_a <- rbind(dff_a,t_a)
+    }
+  }#End for(yy in llev_y)
+
+  dff_b <- subset(df,df$`ISO code`==ctr & indicator%in%c("CS / 100,000 live births") & Year%in%num_y & !is.na(value))
+  dff_b$indicator[dff_b$indicator=="CS / 100,000 live births"] <- "CS case rate\n per 100,000 live births"
+  dff_b$Year <- factor(dff_b$Year, levels=llev_y)
+  for(yy in llev_y)
+  {
+    if((!yy%in% as.character(unique(dff_b$Year))))
+    {
+      t_a <-  rbind(dff_b[1,])
+      t_b$Year <- yy
+      t_b$value <- 0
+      t_b$lower <- NA
+      t_b$upper <- NA
+      t_b$indicator=c("CS case rate\n per 100,000 live births")
+      dff_b <- rbind(dff_b,t_b)
+    }
+  }#End for(yy in llev_y)
+
+  dff_a$indicator[dff_a$indicator=="Treated (%)"] <- "ANC-based syphilis\n treatment"
+  dff_a$indicator[dff_a$indicator=="Syphilis-tested (1st ANC, %)"] <- "ANC-based screening"
+  dff_a$indicator[dff_a$indicator=="Women with >= 1 ANC visit (%)"] <- "ANC-1"
+
+  dff_a$mcolor <- as.factor(dff_a$Year)
+  dff_a$Year <- as.numeric(as.character(dff_a$Year))
+  dff_a$indicator[dff_a$indicator=="Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)"] = "Maternal syphilis prevalence"
+  dff_a$indicatortype <- ifelse(dff_a$indicator!="Maternal syphilis prevalence", "Treatment Cascade",
+                                "Maternal syphilis prevalence")
+
+  dff_a$mgroup <- paste(dff_a$indicator, dff_a$datatype, sep=", ")
+  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, ANC Routine screening"] = "ANC Routine screening"
+  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, ANC Survey"] = "ANC Survey"
+  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, Projected"] = "Prevalence estimates"
+  dff_a$mgroup[dff_a$mgroup=="Syphilis-tested (1st ANC, %), Projected"] = "% tested (1st ANC), Projected"
+  dff_a$mgroup[dff_a$mgroup=="Syphilis-tested (1st ANC, %), Reported"] = "% tested (1st ANC), Reported"
+  dff_a$mgroup[dff_a$mgroup=="Women with >= 1 ANC visit (%), Projected"] = "% with >= 1 ANC visit, Projected"
+  dff_a$mgroup[dff_a$mgroup=="Women with >= 1 ANC visit (%), Reported"] = "% with >= 1 ANC visit, Reported"
+
+  v_levels <- c("Prevalence estimates",
+                "Treated (%), Projected","Treated (%), Reported",
+                "% tested (1st ANC), Projected", "% with >= 1 ANC visit, Projected",
+                "ANC Routine screening", "ANC Survey", "% tested (1st ANC), Reported",
+                "% with >= 1 ANC visit, Reported")
+
+  dff_a$mgroup <- factor(dff_a$mgroup, levels=v_levels)
+
+  dff_a$mshape <- "+";
+  dff_a$mshape[dff_a$mgroup%in%c("Treated (%), Reported","Syphilis-tested (1st ANC, %), Reported", "Women with >= 1 ANC visit (%), Reported",
+                                 "ANC Routine screening","ANC Survey")] = "*"
+
+  dff_ap <- subset(dff_a, indicator%in%c("ANC-based syphilis\n treatment","ANC-based screening","ANC-1"))
+  dff_ap$indicator <- factor(dff_ap$indicator,levels=c("ANC-1","ANC-based screening","ANC-based syphilis\n treatment"))
+
+  dff_a <- data.frame()
+  for(xx in unique(dff_ap$indicator))
+  {
+    temp_xx <- subset(dff_ap, indicator%in%xx)
+    yy_xx <- temp_xx$Year[temp_xx$datatype=="Reported"]
+
+    if(length(yy_xx)>=1)
+    {
+      idxrm <- sapply(yy_xx, function(iy){
+        which(temp_xx$datatype=="Projected" & temp_xx$Year==iy)
+      })
+
+      idxrm <- unlist(idxrm)
+      if(length(idxrm)>=1)
+      {
+        temp_xx <- temp_xx[-idxrm,]
+      }#End if(length(idxrm)>=1)
+    }#End if(length(yy_xx)>=1)
+    dff_a <- rbind(dff_a,temp_xx)
+  }
+
+  #ANC Coverage
+  p_xa <- dff_a%>%ggplot2::ggplot(aes(group=datatype, fill=datatype, color=datatype)) +
+    geom_bar(aes(x=Year, y=100*value),stat="identity")+
+    facet_grid(cols=vars(indicator))+
+    labs(title = "", y = "Coverage (%)",x="")+
+    ylim(0,NA)+
+    theme(
+      axis.title.y = element_text(size = rel(1.2)),
+      axis.title.x = element_text(size = rel(1.2)),
+      panel.background = element_rect(fill = NA),
+      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.ontop = TRUE,
+      #legend.position="none",
+      legend.position="bottom",
+      #legend.position="top",
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+                                      colour = "grey"),
+      strip.text=element_text(size=12),
+      legend.text=element_text(size=11)
+    )
+
+  p_xa$labels$fill <- p_xa$labels$colour <- "Source"
+
+  grobs <- ggplotGrob(p_xa)$grobs
+  legend <- grobs[[which(sapply(grobs, function(x) x$name) == "guide-box")]]
+
+  p_xa <- p_xa +theme(legend.position = "none" )
+
+  ##############################################################################
+  ##############################################################################
+  dff_bp <- dff_b
+  dff_b <- data.frame()
+  for(xx in unique(dff_bp$indicator))
+  {
+    temp_xx <- subset(dff_bp, indicator%in%xx)
+    yy_xx <- temp_xx$Year[temp_xx$datatype=="Reported"]
+
+    if(length(yy_xx)>=1)
+    {
+      idxrm <- sapply(yy_xx, function(iy){
+        which(temp_xx$datatype=="Projected" & temp_xx$Year==iy)
+      })
+
+      idxrm <- unlist(idxrm)
+      if(length(idxrm)>=1)
+      {
+        temp_xx <- temp_xx[-idxrm,]
+      }#End if(length(idxrm)>=1)
+    }#End if(length(yy_xx)>=1)
+    dff_b <- rbind(dff_b,temp_xx)
+  }
+
+  f_bks <- sort(floor(seq(max(as.numeric(as.character(dff_b$Year))),min(as.numeric(as.character(dff_b$Year))), length=4)))
+  ###Testing Coverage
+  p_xb <- dff_b%>%ggplot2::ggplot(aes(group=datatype, fill=datatype, color=datatype)) +
+    geom_bar(aes(x=Year, y=value),stat="identity")+
+    facet_grid(cols=vars(indicator))+
+    labs(title = "", y = "CS case rate\n per 100,000 live births",x="")+
+    #scale_y_continuous(name = NULL, sec.axis = sec_axis(~., name = "CS case rate\n per 100,000 live births")) +
+    scale_x_discrete(breaks = f_bks)+
+    scale_y_continuous(position = "right")+
+    #scale_y_continuous(sec.axis = sec_axis(~./max(dff_b$value)),label=scales::percent) + #scale_y_continuous(sec.axis = sec_axis(~./max(dff_b$value),label=scales::percent)) +
+    #scale_y_continuous(sec.axis = sec_axis(~.),label=scales::percent) + #scale_y_continuous(sec.axis = sec_axis(~./max(dff_b$value),label=scales::percent)) +
+    #ylim(0,NA)+
+    theme(
+      axis.title.y = element_text(size = rel(1.2)),
+      axis.title.x = element_text(size = rel(1.2)),
+      panel.background = element_rect(fill = NA),
+      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.ontop = TRUE,
+      legend.position="none",
+      #legend.position="bottom",
+      #legend.position="top",
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+                                      colour = "grey"),
+      strip.text=element_text(size=12),
+      legend.text=element_text(size=11)
+    )
+
+  p_xb$labels$fill <- p_xb$labels$colour <- "Source"
+
+  all_plots_fig_S1 <- plot_grid(p_xa, p_xb,ncol = 2, labels = NULL, rel_widths = c(3,1))
+  all_plots_fig_S1 <- plot_grid(all_plots_fig_S1, legend,ncol = 1, labels = NULL, rel_heights = c(1,.1))
+
+  title <- ggdraw() +
+    draw_label(
+      ttle,
+      fontface = 'bold',
+      x = 0,
+      hjust = 0
+    ) +
+    theme(
+      # add margin on the left of the drawing canvas,
+      # so title is aligned with left edge of first plot
+      plot.margin = margin(2, 2, 2, 7)
+    )
+
+  all_plots_fig_S2 <- plot_grid(
+    title, all_plots_fig_S1,
+    ncol = 1,
+    # rel_heights values control vertical title margins
+    rel_heights = c(0.05, 1)
+    #rel_heights = c(1,2)
+  )
+
+  all_plots_fig_S2
+}#End plot_ctr_EMTCT
+
+#' Plot CS reported by country
+#'
+#' @param xCSProj object of class "CSProj". This is a list containing COngenital Syphilis estimates.
+#' @param ctr_iso3 Country's alpha-numeric ISO code.
+#' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
+#' @return plot, object from ggplot
+#' @examples Not available
+plot_ctr_csreport <- function(xCSProj, ctr_iso3, years= 2010:2021)
+{
+  require(ggplot2)
+  library(tidyverse)
+  library(scales)
+  library(gridExtra)
+  library(cowplot)
+
+  if(length(ctr_iso3)!=1)
+  {
+    stop("length(ctr_iso3) must be 1")
+  }
+
+  llev_y <- as.factor(years)
+  num_y <- as.numeric(as.character(llev_y))
+  #df=xCSProj$CongenDataOut
+  df=xCSProj$CongenDataIn
+  ctr <- ctr_iso3
+
+  short_dfc <- subset(df,df$`ISO code`==ctr)
+  nobs <- nrow(short_dfc)
+  if(nobs==0) return(NULL)
+
+  ctr_name <- df$Country[df$`ISO code`==ctr][1]
+
+  long_dfc <- data.frame(
+    Country = ctr_name,
+    indicator = c(rep("Clinical CS", nobs),rep("Non-Clinical CS", nobs),rep("Stillbirths", nobs),rep("Premature/low birth weight", nobs),rep("Neonatal deaths", nobs)),
+    Year = c(short_dfc$Year,short_dfc$Year,short_dfc$Year,short_dfc$Year,short_dfc$Year),
+    value = c(short_dfc$`CS cases`-short_dfc$`Asymptomatic CS`,short_dfc$`Asymptomatic CS`, short_dfc$`Still births`, short_dfc$`Prematurity or LBW due to CS`, short_dfc$`Neonatal death due to CS`),#?
+    datatype = c(short_dfc$`N any ANC visits`)
+  )
+
+  long_dfc <- subset(long_dfc, !is.na(value))
+  if(nrow(long_dfc)==0) return(NULL)
+
+  #ANC Coverage
+  p_xa <- long_dfc%>%ggplot2::ggplot(aes(group=indicator, fill=indicator, color=indicator)) +
+    geom_bar(aes(x=Year, y=value),stat="identity")+
+    labs(title = "Reported Cases", y = "Cases numbers",x="")+
+    ylim(0,NA)+
+    theme(
+      axis.title.y = element_text(size = rel(1.2)),
+      axis.title.x = element_text(size = rel(1.2)),
+      panel.background = element_rect(fill = NA),
+      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.ontop = TRUE,
+      #legend.position="none",
+      legend.position="bottom",
+      #legend.position="top",
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+                                      colour = "grey"),
+      strip.text=element_text(size=12),
+      legend.text=element_text(size=11)
+    )
+
+  p_xa$labels$fill <- p_xa$labels$colour <- "Source"
+
+  #Combined
+  #all_plots_fig_S1 <- plot_grid(p_a, p_b,ncol = 1, labels = "AUTO", rel_heights = c(2,3))
+  all_plots_fig_S1 <- p_xa
+
+  title <- ggdraw() +
+    draw_label(
+      ctr_name,
+      fontface = 'bold',
+      x = 0,
+      hjust = 0
+    ) +
+    theme(
+      # add margin on the left of the drawing canvas,
+      # so title is aligned with left edge of first plot
+      plot.margin = margin(2, 2, 2, 7)
+    )
+
+  all_plots_fig_S2 <- plot_grid(
+    title, all_plots_fig_S1,
+    ncol = 1,
+    # rel_heights values control vertical title margins
+    rel_heights = c(0.05, 1)
+    #rel_heights = c(1,2)
+  )
+
+  all_plots_fig_S2
+}#End plot_ctr_csreport
+
+#' Plot CS estimates only by country
+#'
+#' @param xCSProj object of class "CSProj". This is a list containing COngenital Syphilis estimates.
+#' @param ctr_iso3 Country's alpha-numeric ISO code.
+#' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
+#' @return plot, object from ggplot
+#' @examples Not available
+plot_ctr_CSProj <- function(xCSProj, ctr_iso3, years= 2010:2021)
+{
+  require(ggplot2)
+  library(tidyverse)
+  library(scales)
+  library(gridExtra)
+  library(cowplot)
+
+  if(length(ctr_iso3)!=1)
+  {
+    stop("length(ctr_iso3) must be 1")
+  }
+
+  llev_y <- as.factor(years)
+  num_y <- as.numeric(as.character(llev_y))
+  df=xCSProj$CongenDataOut
+  ctr <- ctr_iso3
+
+  #
+  short_dfc <- subset(df,df$`ISO code`==ctr)
+  nobs <- nrow(short_dfc)
+  if(nobs==0) return(NULL)
+
+  ctr_name <- df$Country[df$`ISO code`==ctr][1]
+
+  long_dfc <- data.frame(
+    Country = ctr_name,
+    indicator = c(rep("Cases not seen in ANC", nobs),rep("Screened but  not treated", nobs),rep("Attended ANC but not screened", nobs),rep("Not in ANC", nobs)),
+    Year = c(short_dfc$Year,short_dfc$Year,short_dfc$Year,short_dfc$Year,short_dfc$Year),
+    value = c(short_dfc$`CS cases, not seen in ANC`,short_dfc$`CS cases, ANC-screened women not treated`, short_dfc$`CS cases, ANC women not screened`, short_dfc$`ABO, not seen in ANC`),#?
+    datatype = "Estimated"
+  )
+
+  long_dfc <- subset(long_dfc, !is.na(value))
+  if(nrow(long_dfc)==0) return(NULL)
+
+  #ANC Coverage
+  p_xa <- long_dfc%>%ggplot2::ggplot(aes(group=indicator, fill=indicator, color=indicator)) +
+    geom_bar(aes(x=Year, y=value),stat="identity")+
+    labs(title = "Reported Cases", y = "Cases numbers",x="")+
+    ylim(0,NA)+
+    theme(
+      axis.title.y = element_text(size = rel(1.2)),
+      axis.title.x = element_text(size = rel(1.2)),
+      panel.background = element_rect(fill = NA),
+      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.ontop = TRUE,
+      #legend.position="none",
+      legend.position="bottom",
+      #legend.position="top",
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+                                      colour = "grey"),
+      strip.text=element_text(size=12),
+      legend.text=element_text(size=11)
+    )
+
+  p_xa$labels$fill <- p_xa$labels$colour <- "Source"
+
+  #Combined
+  #all_plots_fig_S1 <- plot_grid(p_a, p_b,ncol = 1, labels = "AUTO", rel_heights = c(2,3))
+  all_plots_fig_S1 <- p_xa
+
+  title <- ggdraw() +
+    draw_label(
+      ctr_name,
+      fontface = 'bold',
+      x = 0,
+      hjust = 0
+    ) +
+    theme(
+      # add margin on the left of the drawing canvas,
+      # so title is aligned with left edge of first plot
+      plot.margin = margin(2, 2, 2, 7)
+    )
+
+  all_plots_fig_S2 <- plot_grid(
+    title, all_plots_fig_S1,
+    ncol = 1,
+    # rel_heights values control vertical title margins
+    rel_heights = c(0.05, 1)
+    #rel_heights = c(1,2)
+  )
+
+  all_plots_fig_S2
+} #plot_ctr_CSProj
+
+
 #' Plot CS estimates by country
 #'
-#' @param ctr_iso3 object of class "CSProj". This is a list containing COngenital Syphilis estimates.
-#' @param ctrname Country's alpha-numeric ISO code.
+#' @param xCSProj object of class "CSProj". This is a list containing COngenital Syphilis estimates.
+#' @param ctr_iso3 Country's alpha-numeric ISO code.
 #' @param fbreaks A numeric vector of positions for breaks on the y-axis. This set to c(2010,2012,2016,2020) by default.
 #' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
 #' @return plot, object from ggplot
@@ -4955,6 +4857,215 @@ plot_all_CSProj <- function(xCSProj, ctr_iso3, fbreaks=c(2010,2012,2016,2020), y
 
   all_plots_fig_S2
 }
+
+#' Plot ANC, treatment or Syphilis testing coverage by country
+#'
+#' @param xCSProj object of class "CSProj". This is a list containing COngenital Syphilis estimates.
+#' @param ctr_iso3 Country's alpha-numeric ISO code.
+#' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
+#' @return plot, object from ggplot
+#' @examples Not available
+plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years= 2010:2021)
+{
+  require(ggplot2)
+  library(tidyverse)
+  library(scales)
+  library(gridExtra)
+  library(cowplot)
+
+  if(length(ctr_iso3)!=1)
+  {
+    stop("length(ctr_iso3) must be 1")
+  }
+
+  llev_y <- as.factor(years)
+  num_y <- as.numeric(as.character(llev_y))
+  df=xCSProj$LongCongenDataOutForPlots
+  ctr <- ctr_iso3
+
+  dff_a <- subset(df,df$`ISO code`==ctr & indicator%in%c("Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)",
+                                                         "Syphilis-tested (1st ANC, %)","Women with >= 1 ANC visit (%)","Treated (%)") & Year%in%num_y & !is.na(value))
+  ctr_name <- df$Country[df$`ISO code`==ctr][1]
+
+  dff_a$value[dff_a$indicator=="Treated (%)"] <- dff_a$value[dff_a$indicator=="Treated (%)"]/100
+  dff_a$lower[dff_a$indicator=="Treated (%)"] <- dff_a$lower[dff_a$indicator=="Treated (%)"]/100
+  dff_a$upper[dff_a$indicator=="Treated (%)"] <- dff_a$upper[dff_a$indicator=="Treated (%)"]/100
+
+  dff_a$value[dff_a$indicator=="Syphilis-tested (1st ANC, %)"] <- dff_a$value[dff_a$indicator=="Syphilis-tested (1st ANC, %)"]/100
+  dff_a$lower[dff_a$indicator=="Syphilis-tested (1st ANC, %)"] <- dff_a$lower[dff_a$indicator=="Syphilis-tested (1st ANC, %)"]/100
+  dff_a$upper[dff_a$indicator=="Syphilis-tested (1st ANC, %)"] <- dff_a$upper[dff_a$indicator=="Syphilis-tested (1st ANC, %)"]/100
+
+  dff_a$value[dff_a$indicator=="Women with >= 1 ANC visit (%)"] <- dff_a$value[dff_a$indicator=="Women with >= 1 ANC visit (%)"]/100
+  dff_a$lower[dff_a$indicator=="Women with >= 1 ANC visit (%)"] <- dff_a$lower[dff_a$indicator=="Women with >= 1 ANC visit (%)"]/100
+  dff_a$upper[dff_a$indicator=="Women with >= 1 ANC visit (%)"] <- dff_a$upper[dff_a$indicator=="Women with >= 1 ANC visit (%)"]/100
+
+  dff_a$Year <- factor(dff_a$Year, levels=llev_y)
+  if(nrow(dff_a)<=0) return(NULL);
+  for(yy in llev_y)
+  {
+    if((!yy%in% as.character(unique(dff_a$Year))))
+    {
+      t_a <-  rbind(dff_a[1,],dff_a[1,],dff_a[1,],dff_a[1,])
+      t_a$Year <- yy
+      t_a$value <- 0
+      t_a$lower <- NA
+      t_a$upper <- NA
+      t_a$indicator=c("Treated (%)","Maternal syphilis prevalence","Syphilis-tested (1st ANC, %)","Women with >= 1 ANC visit (%)")
+      dff_a <- rbind(dff_a,t_a)
+    }
+  }#End for(yy in llev_y)
+
+  dff_a$mcolor <- as.factor(dff_a$Year)
+  dff_a$Year <- as.numeric(as.character(dff_a$Year))
+  dff_a$indicator[dff_a$indicator=="Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)"] = "Maternal syphilis prevalence"
+  dff_a$indicatortype <- ifelse(dff_a$indicator!="Maternal syphilis prevalence", "Treatment Cascade",
+                                "Maternal syphilis prevalence")
+
+  dff_a$mgroup <- paste(dff_a$indicator, dff_a$datatype, sep=", ")
+  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, ANC Routine screening"] = "ANC Routine screening"
+  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, ANC Survey"] = "ANC Survey"
+  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, Projected"] = "Prevalence estimates"
+  dff_a$mgroup[dff_a$mgroup=="Syphilis-tested (1st ANC, %), Projected"] = "% tested (1st ANC), Projected"
+  dff_a$mgroup[dff_a$mgroup=="Syphilis-tested (1st ANC, %), Reported"] = "% tested (1st ANC), Reported"
+  dff_a$mgroup[dff_a$mgroup=="Women with >= 1 ANC visit (%), Projected"] = "% with >= 1 ANC visit, Projected"
+  dff_a$mgroup[dff_a$mgroup=="Women with >= 1 ANC visit (%), Reported"] = "% with >= 1 ANC visit, Reported"
+  v_levels <- c("Prevalence estimates",
+                "Treated (%), Projected","Treated (%), Reported",
+                "% tested (1st ANC), Projected", "% with >= 1 ANC visit, Projected",
+                "ANC Routine screening", "ANC Survey", "% tested (1st ANC), Reported",
+                "% with >= 1 ANC visit, Reported")
+
+  dff_a$mgroup <- factor(dff_a$mgroup, levels=v_levels)
+
+  dff_a$mshape <- "+";
+  dff_a$mshape[dff_a$mgroup%in%c("Treated (%), Reported","Syphilis-tested (1st ANC, %), Reported", "Women with >= 1 ANC visit (%), Reported",
+                                 "ANC Routine screening","ANC Survey")] = "*"
+
+  #ANC Coverage
+  p_xa <- dff_a%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
+    geom_bar(data= .%>%subset(datatype=="Reported" & indicator=="Women with >= 1 ANC visit (%)"), aes(x=Year, y=100*value),stat="identity")+
+    geom_line(data= .%>%subset(datatype=="Projected" & indicator=="Women with >= 1 ANC visit (%)"), aes(x=Year, y=100*value))+
+    geom_ribbon(data=.%>%subset(datatype=="Projected" & indicator=="Women with >= 1 ANC visit (%)"),
+                aes(x=Year, y=100*value, ymin=100*lower, ymax=100*upper), alpha=0.25, color=NA)+
+    geom_point(data=.%>%subset(datatype!="Projected" & indicator=="Women with >= 1 ANC visit (%)"), aes(x=Year, y=100*value)) +
+    labs(title = "", y = "Value (%)",x="")+
+    ylim(0,NA)+
+    theme(
+      axis.title.y = element_text(size = rel(1.2)),
+      axis.title.x = element_text(size = rel(1.2)),
+      panel.background = element_rect(fill = NA),
+      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.ontop = TRUE,
+      #legend.position="none",
+      legend.position="bottom",
+      #legend.position="top",
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+                                      colour = "grey"),
+      strip.text=element_text(size=12),
+      legend.text=element_text(size=11)
+    )
+
+  p_xa$labels$fill <- p_xa$labels$colour <- "Source"
+
+  ###Testing Coverage
+  p_xb <- dff_a%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
+    geom_bar(data= .%>%subset(datatype=="Reported" & indicator=="Syphilis-tested (1st ANC, %)"), aes(x=Year, y=100*value),stat="identity")+
+    geom_line(data= .%>%subset(datatype=="Projected" & indicator=="Syphilis-tested (1st ANC, %)"), aes(x=Year, y=100*value))+
+    geom_ribbon(data=.%>%subset(datatype=="Projected" & indicator=="Syphilis-tested (1st ANC, %)"),
+                aes(x=Year, y=100*value, ymin=100*lower, ymax=100*upper), alpha=0.25, color=NA)+
+    geom_point(data=.%>%subset(datatype!="Projected" & indicator=="Syphilis-tested (1st ANC, %)"), aes(x=Year, y=100*value)) +
+    labs(title = "", y = "Value (%)",x="")+
+    ylim(0,NA)+
+    theme(
+      axis.title.y = element_text(size = rel(1.2)),
+      axis.title.x = element_text(size = rel(1.2)),
+      panel.background = element_rect(fill = NA),
+      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.ontop = TRUE,
+      #legend.position="none",
+      legend.position="bottom",
+      #legend.position="top",
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+                                      colour = "grey"),
+      strip.text=element_text(size=12),
+      legend.text=element_text(size=11)
+    )
+
+  p_xb$labels$fill <- p_xb$labels$colour <- "Source"
+
+  #Treatment Coverage
+  p_xc <- dff_a%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
+    geom_bar(data= .%>%subset(datatype=="Reported" & indicator=="Treated (%)"), aes(x=Year, y=100*value),stat="identity")+
+    geom_line(data= .%>%subset(datatype=="Projected" & indicator=="Treated (%)"), aes(x=Year, y=100*value))+
+    geom_ribbon(data=.%>%subset(datatype=="Projected" & indicator=="Treated (%)"),
+                aes(x=Year, y=100*value, ymin=100*lower, ymax=100*upper), alpha=0.25, color=NA)+
+    geom_point(data=.%>%subset(datatype!="Projected" & indicator=="Treated (%)"), aes(x=Year, y=100*value)) +
+    labs(title = "", y = "Value (%)",x="")+
+    ylim(0,NA)+
+    theme(
+      axis.title.y = element_text(size = rel(1.2)),
+      axis.title.x = element_text(size = rel(1.2)),
+      panel.background = element_rect(fill = NA),
+      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.ontop = TRUE,
+      #legend.position="none",
+      legend.position="bottom",
+      #legend.position="top",
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+                                      colour = "grey"),
+      strip.text=element_text(size=12),
+      legend.text=element_text(size=11)
+    )
+
+  p_xc$labels$fill <- p_xc$labels$colour <- "Source"
+
+
+  all_plots_fig_S1 <- NULL
+  ttle <- ctr_name
+  ##Combined
+  #all_plots_fig_S1 <- plot_grid(p_a, p_b,ncol = 1, labels = "AUTO", rel_heights = c(2,3))
+  if(indicator=="ANC Coverage")
+  {
+    all_plots_fig_S1 <- p_xa
+    ttle <- paste(ttle, ", ANC coverage", sep="")
+  } else if (indicator=="Testing Coverage")
+  {
+    all_plots_fig_S1 <- p_xb
+    ttle <- paste(ttle, ", testing coverage", sep="")
+  } else if (indicator=="Treatement Coverage")
+  {
+    all_plots_fig_S1 <- p_xc
+    ttle <- paste(ttle, ", treatment coverage", sep="")
+  }
+
+  title <- ggdraw() +
+    draw_label(
+      ttle,
+      fontface = 'bold',
+      x = 0,
+      hjust = 0
+    ) +
+    theme(
+      # add margin on the left of the drawing canvas,
+      # so title is aligned with left edge of first plot
+      plot.margin = margin(2, 2, 2, 7)
+    )
+
+  all_plots_fig_S2 <- plot_grid(
+    title, all_plots_fig_S1,
+    ncol = 1,
+    # rel_heights values control vertical title margins
+    rel_heights = c(0.05, 1)
+    #rel_heights = c(1,2)
+  )
+
+  all_plots_fig_S2
+}
+
+
 
 #' Plot Global and Regional CS-ABO estimates
 #'

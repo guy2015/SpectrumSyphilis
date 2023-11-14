@@ -12,7 +12,7 @@ get_precalcsCS <- function(namesinputfiles)
   fin_name.data.file <- namesinputfiles$prevalence
   fin_name_cs_screening <- namesinputfiles$screening
   fin_name_cs_db <- namesinputfiles$csdb
-  fin_name_allbirths <- namesinputfiles$allbirths
+  fin_name_allbirths <- namesinputfiles$demographics
 
   namesCol = c("Country","ISO3" ,"ISO3_letters", "WHO_region","Data_type", "Population_code", "Sex", "Year", "DX_Code",
                "N_positive", "N_tested", "Prevalence", "Weight", "WghtNSpectrum", "Weight_for_Spectrum_fitting")
@@ -152,13 +152,11 @@ get_precalcsCS <- function(namesinputfiles)
   ###############################################################################
 
   #Preparing Jane data
-  JaWbTreatment <- openxlsx::read.xlsx(fin_name_cs_screening,"Treatment")
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Eastern Mediterranean"] = "EMR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Africa"] = "AFR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="America"] = "AMR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Europe"] = "EUR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="South-East Asia"] = "SEAR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Western Pacific"] = "WPR"
+  #JaWbTreatment <- openxlsx::read.xlsx(fin_name_cs_screening,"Treatment")
+  JaWbTreatment <- openxlsx::read.xlsx(fin_name_cs_screening,"Treatment coverage")
+
+  JaWbTreatment$REGION_WHO <- JaWbTreatment$ParentLocationCode
+  JaWbTreatment$COUNTRY_CODE <- JaWbTreatment$SpatialDimValueCode
 
   JaWbTreatment$SDG_Region <- sapply(JaWbTreatment$COUNTRY_CODE, function(x)
   {
@@ -174,11 +172,11 @@ get_precalcsCS <- function(namesinputfiles)
                                      'Rank 2016, CS case RATE'=rep(NA,nrow(JaWbTreatment)), check.names=FALSE
   )
 
-  JaWb_CongenSyphdb_v0$Country = JaWbTreatment$COUNTRY_NAME
+  JaWb_CongenSyphdb_v0$Country = JaWbTreatment$Location
   JaWb_CongenSyphdb_v0$'WHO Region' = JaWbTreatment$REGION_WHO
   JaWb_CongenSyphdb_v0$'ISO code' = JaWbTreatment$COUNTRY_CODE
   JaWb_CongenSyphdb_v0$'ISO3nmb' = NA#JaWbTreatment$ISO3nmb
-  JaWb_CongenSyphdb_v0$'Year' = JaWbTreatment$Year
+  JaWb_CongenSyphdb_v0$'Year' = JaWbTreatment$Period
   JaWb_CongenSyphdb_v0$'Live Births' = NA
   JaWb_CongenSyphdb_v0$'Still births' = NA
   JaWb_CongenSyphdb_v0$'Stillbirths, Blencowe & Hogan 2016' = NA
@@ -194,10 +192,10 @@ get_precalcsCS <- function(namesinputfiles)
   JaWb_CongenSyphdb_v0$'N any ANC visits' = NA #//Screening Sheet/Spectrum?
   JaWb_CongenSyphdb_v0$'Syphilis-tested (any ANC visit,%)' = NA #
   JaWb_CongenSyphdb_v0$'Source of Test coverage' = NA #
-  JaWb_CongenSyphdb_v0$'ANC women with syphilis, treated, N' = JaWbTreatment$'NUM_TREATMENT-TOTAL' #
+  JaWb_CongenSyphdb_v0$'ANC women with syphilis, treated, N' = NA#JaWbTreatment$'NUM_TREATMENT-TOTAL' #
   JaWb_CongenSyphdb_v0$'Syphilis-infected ANC' = NA #
-  JaWb_CongenSyphdb_v0$'Treated (%)' = JaWbTreatment$'PER_TREATMENT-TOTAL' #
-  JaWb_CongenSyphdb_v0$'Treated (%)'[JaWb_CongenSyphdb_v0$'Treated (%)'=="A"] <- NA
+  JaWb_CongenSyphdb_v0$'Treated (%)' = JaWbTreatment$FactValueNumeric##JaWbTreatment$'PER_TREATMENT-TOTAL' #
+  #JaWb_CongenSyphdb_v0$'Treated (%)'[JaWb_CongenSyphdb_v0$'Treated (%)'=="A"] <- NA
   JaWb_CongenSyphdb_v0$'Source of Treated' = NA #
   JaWb_CongenSyphdb_v0$'Congenital syphilis case REPORTS' = NA #
   JaWb_CongenSyphdb_v0$'CS case report rate' = NA #
@@ -212,14 +210,14 @@ get_precalcsCS <- function(namesinputfiles)
 
   #Screening
   ##
-  JaWbSCreening <- openxlsx::read.xlsx(fin_name_cs_screening,"Screening", detectDates = TRUE)
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Eastern Mediterranean"] = "EMR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Africa"] = "AFR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="America"] = "AMR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Europe"] = "EUR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="South-East Asia"] = "SEAR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Western Pacific"] = "WPR"
-  names(JaWbSCreening)[names(JaWbSCreening)=="X5"] <- "Coverage"
+  JaWbSCreening <- openxlsx::read.xlsx(fin_name_cs_screening,"Screening coverage", detectDates = TRUE)
+
+  JaWbSCreening$REGION_WHO <- JaWbSCreening$ParentLocationCode
+  JaWbSCreening$COUNTRY_CODE <- JaWbSCreening$SpatialDimValueCode
+  JaWbSCreening$Country = JaWbSCreening$Location
+  JaWbSCreening$'WHO Region' = JaWbSCreening$REGION_WHO
+  JaWbSCreening$'ISO code' = JaWbSCreening$COUNTRY_CODE
+  JaWbSCreening$'Year' = JaWbSCreening$Period
 
   JaWbSCreening$SDG_Region <- sapply(JaWbSCreening$COUNTRY_CODE, function(x)
   {
@@ -228,6 +226,8 @@ get_precalcsCS <- function(namesinputfiles)
     if(length(idx)>=1) res <- SDGRegions$'SDG Regions'[idx[1]]
     res
   })
+
+  JaWbSCreening$Coverage <- JaWbSCreening$FactValueNumeric
 
   for(ii in 1:nrow(JaWb_CongenSyphdb_v0))
   {
@@ -304,15 +304,15 @@ get_precalcsCS <- function(namesinputfiles)
   JaWb_EarlyANC <- data.frame(ISO3 <- JaWbSCreening$COUNTRY_CODE)
   JaWb_EarlyANC$Country <- JaWbSCreening$COUNTRY_NAME
   JaWb_EarlyANC$Region <- JaWbSCreening$REGION_WHO
-  JaWb_EarlyANC$'Start year' <- JaWbSCreening$period_start_date
-  JaWb_EarlyANC$'End year' <- JaWbSCreening$period_end_date
+  JaWb_EarlyANC$'Start year' <- JaWbSCreening$Year#JaWbSCreening$period_start_date
+  JaWb_EarlyANC$'End year' <- JaWbSCreening$Year#JaWbSCreening$period_end_date
   JaWb_EarlyANC$'Coverage early ANC' <- JaWbSCreening$Coverage
-  JaWb_EarlyANC$'N early ANC' <- JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
+  JaWb_EarlyANC$'N early ANC' <- NA #JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Code, first ANC threshold time' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Sample size' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Source code' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Source for Source code' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
-  JaWb_EarlyANC$'Early ANC' <- JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
+  JaWb_EarlyANC$'Early ANC' <- JaWbSCreening$Coverage#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
   JaWb_EarlyANC$'Late ANC' <- NA#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
   JaWb_EarlyANC$'All women' <- 1#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
   JaWb_EarlyANC$'Before cut-off' <- NA#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
@@ -870,7 +870,8 @@ get_precalcsCS <- function(namesinputfiles)
   ################################################################################
   ######Imputation of pregnancies#################################################
   ################################################################################
-  SpectrumBirths <- openxlsx::read.xlsx(fin_name_allbirths, startRow = 2)
+  #SpectrumBirths <- openxlsx::read.xlsx(fin_name_allbirths, startRow = 2)
+  SpectrumBirths <- openxlsx::read.xlsx(fin_name_allbirths, sheet = "All births",startRow = 2)
   #Countries with missing Spectrum files, we interpolate using a linear model
   for(ctr in unique(ElWb_CongenSyphdb$Country))
   {
@@ -896,7 +897,7 @@ get_precalcsCS <- function(namesinputfiles)
     year_ii <- ElWb_CongenSyphdb$Year[ii]
     if(is.na(year_ii)) next
     ratiostilllive <- ElWb_CongenSyphdb$`Still/Live births`[ii]
-    livebirths <- SpectrumBirths[SpectrumBirths$ISO3==iso, names(SpectrumBirths) == as.character(year_ii)]
+    livebirths <- as.numeric(as.character(SpectrumBirths[SpectrumBirths$ISO3==iso, names(SpectrumBirths) == as.character(year_ii)]))
     if(length(livebirths)>=1)
     {
       livebirths <- sum(livebirths)
@@ -1164,7 +1165,7 @@ get_rawCS <- function(namesinputfiles)
   fin_name.data.file <- namesinputfiles$prevalence
   fin_name_cs_screening <- namesinputfiles$screening
   fin_name_cs_db <- namesinputfiles$csdb
-  fin_name_allbirths <- namesinputfiles$allbirths
+  fin_name_allbirths <- namesinputfiles$demographics
 
   namesCol = c("Country","ISO3" ,"ISO3_letters", "WHO_region","Data_type", "Population_code", "Sex", "Year", "DX_Code",
                "N_positive", "N_tested", "Prevalence", "Weight", "WghtNSpectrum", "Weight_for_Spectrum_fitting")
@@ -1305,14 +1306,10 @@ get_rawCS <- function(namesinputfiles)
   ###############################################################################
   ###############################################################################
   #Preparing Jane's data
-  JaWbTreatment <- openxlsx::read.xlsx(fin_name_cs_screening,"Treatment")
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Eastern Mediterranean"] = "EMR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Africa"] = "AFR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="America"] = "AMR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Europe"] = "EUR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="South-East Asia"] = "SEAR"
-  JaWbTreatment$REGION_WHO[JaWbTreatment$REGION_WHO=="Western Pacific"] = "WPR"
-
+  #
+  JaWbTreatment <- openxlsx::read.xlsx(fin_name_cs_screening,"Treatment coverage")#JaWbTreatment <- openxlsx::read.xlsx(fin_name_cs_screening,"Treatment")
+  JaWbTreatment$REGION_WHO <- JaWbTreatment$ParentLocationCode
+  JaWbTreatment$COUNTRY_CODE <- JaWbTreatment$SpatialDimValueCode
 
   JaWbTreatment$SDG_Region <- sapply(JaWbTreatment$COUNTRY_CODE, function(x)
   {
@@ -1328,11 +1325,11 @@ get_rawCS <- function(namesinputfiles)
                                      'Rank 2016, CS case RATE'=rep(NA,nrow(JaWbTreatment)), check.names=FALSE
   )
 
-  JaWb_CongenSyphdb_v0$Country = JaWbTreatment$COUNTRY_NAME
+  JaWb_CongenSyphdb_v0$Country = JaWbTreatment$Location
   JaWb_CongenSyphdb_v0$'WHO Region' = JaWbTreatment$REGION_WHO
   JaWb_CongenSyphdb_v0$'ISO code' = JaWbTreatment$COUNTRY_CODE
   JaWb_CongenSyphdb_v0$'ISO3nmb' = NA#JaWbTreatment$ISO3nmb
-  JaWb_CongenSyphdb_v0$'Year' = JaWbTreatment$Year
+  JaWb_CongenSyphdb_v0$'Year' = JaWbTreatment$Period
   JaWb_CongenSyphdb_v0$'Live Births' = NA
   JaWb_CongenSyphdb_v0$'Still births' = NA
   JaWb_CongenSyphdb_v0$'Stillbirths, Blencowe & Hogan 2016' = NA
@@ -1348,10 +1345,10 @@ get_rawCS <- function(namesinputfiles)
   JaWb_CongenSyphdb_v0$'N any ANC visits' = NA #//Screening Sheet/Spectrum?
   JaWb_CongenSyphdb_v0$'Syphilis-tested (any ANC visit,%)' = NA #
   JaWb_CongenSyphdb_v0$'Source of Test coverage' = NA #
-  JaWb_CongenSyphdb_v0$'ANC women with syphilis, treated, N' = JaWbTreatment$'NUM_TREATMENT-TOTAL' #
+  JaWb_CongenSyphdb_v0$'ANC women with syphilis, treated, N' = NA#JaWbTreatment$'NUM_TREATMENT-TOTAL' #
   JaWb_CongenSyphdb_v0$'Syphilis-infected ANC' = NA #
-  JaWb_CongenSyphdb_v0$'Treated (%)' = JaWbTreatment$'PER_TREATMENT-TOTAL' #
-  JaWb_CongenSyphdb_v0$'Treated (%)'[JaWb_CongenSyphdb_v0$'Treated (%)'=="A"] <- NA
+  JaWb_CongenSyphdb_v0$'Treated (%)' = JaWbTreatment$FactValueNumeric##JaWbTreatment$'PER_TREATMENT-TOTAL' #
+  #JaWb_CongenSyphdb_v0$'Treated (%)'[JaWb_CongenSyphdb_v0$'Treated (%)'=="A"] <- NA
   JaWb_CongenSyphdb_v0$'Source of Treated' = NA #
   JaWb_CongenSyphdb_v0$'Congenital syphilis case REPORTS' = NA #
   JaWb_CongenSyphdb_v0$'CS case report rate' = NA #
@@ -1366,14 +1363,14 @@ get_rawCS <- function(namesinputfiles)
 
   #Screening
   ##
-  JaWbSCreening <- openxlsx::read.xlsx(fin_name_cs_screening,"Screening", detectDates = TRUE)
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Eastern Mediterranean"] = "EMR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Africa"] = "AFR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="America"] = "AMR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Europe"] = "EUR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="South-East Asia"] = "SEAR"
-  JaWbSCreening$REGION_WHO[JaWbSCreening$REGION_WHO=="Western Pacific"] = "WPR"
-  names(JaWbSCreening)[names(JaWbSCreening)=="X5"] <- "Coverage"
+  JaWbSCreening <- openxlsx::read.xlsx(fin_name_cs_screening,"Screening coverage", detectDates = TRUE) #JaWbSCreening <- openxlsx::read.xlsx(fin_name_cs_screening,"Screening", detectDates = TRUE)
+
+  JaWbSCreening$REGION_WHO <- JaWbSCreening$ParentLocationCode
+  JaWbSCreening$COUNTRY_CODE <- JaWbSCreening$SpatialDimValueCode
+  JaWbSCreening$Country = JaWbSCreening$Location
+  JaWbSCreening$'WHO Region' = JaWbSCreening$REGION_WHO
+  JaWbSCreening$'ISO code' = JaWbSCreening$COUNTRY_CODE
+  JaWbSCreening$'Year' = JaWbSCreening$Period
 
   JaWbSCreening$SDG_Region <- sapply(JaWbSCreening$COUNTRY_CODE, function(x)
   {
@@ -1382,6 +1379,8 @@ get_rawCS <- function(namesinputfiles)
     if(length(idx)>=1) res <- SDGRegions$'SDG Regions'[idx[1]]
     res
   })
+
+  JaWbSCreening$Coverage <- JaWbSCreening$FactValueNumeric
 
   for(ii in 1:nrow(JaWb_CongenSyphdb_v0))
   {
@@ -1458,15 +1457,15 @@ get_rawCS <- function(namesinputfiles)
   JaWb_EarlyANC <- data.frame(ISO3 <- JaWbSCreening$COUNTRY_CODE)
   JaWb_EarlyANC$Country <- JaWbSCreening$COUNTRY_NAME
   JaWb_EarlyANC$Region <- JaWbSCreening$REGION_WHO
-  JaWb_EarlyANC$'Start year' <- JaWbSCreening$period_start_date
-  JaWb_EarlyANC$'End year' <- JaWbSCreening$period_end_date
+  JaWb_EarlyANC$'Start year' <- JaWbSCreening$Year#JaWbSCreening$period_start_date
+  JaWb_EarlyANC$'End year' <- JaWbSCreening$Year#JaWbSCreening$period_end_date
   JaWb_EarlyANC$'Coverage early ANC' <- JaWbSCreening$Coverage
-  JaWb_EarlyANC$'N early ANC' <- JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
+  JaWb_EarlyANC$'N early ANC' <- NA #JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Code, first ANC threshold time' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Sample size' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Source code' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
   JaWb_EarlyANC$'Source for Source code' <- NA#JaWbSCreening$'NUM_FIRST_VISIT-TOTAL'
-  JaWb_EarlyANC$'Early ANC' <- JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
+  JaWb_EarlyANC$'Early ANC' <- JaWbSCreening$Coverage#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
   JaWb_EarlyANC$'Late ANC' <- NA#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
   JaWb_EarlyANC$'All women' <- 1#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
   JaWb_EarlyANC$'Before cut-off' <- NA#JaWbSCreening$'PER_FIRST_VISIT-TOTAL'/100
@@ -1710,9 +1709,8 @@ get_rawCS <- function(namesinputfiles)
   ################################################################################
   ######Imputation of pregnancies#################################################
   ################################################################################
-
-
-  SpectrumBirths <- openxlsx::read.xlsx(fin_name_allbirths, startRow = 2)
+  #SpectrumBirths <- openxlsx::read.xlsx(fin_name_allbirths, startRow = 2)
+  SpectrumBirths <- openxlsx::read.xlsx(fin_name_allbirths, sheet = "All births",startRow = 2)
   #Countries with missing Spectrum files, we interpolate using a linear model
   for(ctr in unique(ElWb_CongenSyphdb$Country))
   {
@@ -1738,7 +1736,7 @@ get_rawCS <- function(namesinputfiles)
     year_ii <- ElWb_CongenSyphdb$Year[ii]
     if(is.na(year_ii)) next
     ratiostilllive <- ElWb_CongenSyphdb$`Still/Live births`[ii]
-    livebirths <- SpectrumBirths[SpectrumBirths$ISO3==iso, names(SpectrumBirths) == as.character(year_ii)]
+    livebirths <- as.numeric(as.character(SpectrumBirths[SpectrumBirths$ISO3==iso, names(SpectrumBirths) == as.character(year_ii)]))
     if(length(livebirths)>=1)
     {
       livebirths <- sum(livebirths)
