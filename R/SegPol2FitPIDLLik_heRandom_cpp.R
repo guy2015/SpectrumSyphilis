@@ -2305,11 +2305,11 @@ GetTemplateSyphData <-  function(ctr_iso3=NULL)
 #' @examples Not available
 #' @keywords internal
 #' @export
-CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_year=2011, rSyph_preg=1, CSinputfiles=NULL)#CalcCS <- function(xSyphfit, proj_years=1990:2025)
+CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_year=2011, rSyph_preg=1, CSinputfiles=NULL, f_DiagnosticTest=Default_DiagnosticTest)#CalcCS <- function(xSyphfit, proj_years=1990:2025)
 {
   if(!is.null(CSinputfiles))
   {
-    pre_res_0 <- get_precalcsCS(CSinputfiles)
+    pre_res_0 <- get_precalcsCS(CSinputfiles, f_DiagnosticTest)
     CongenDataIn <- pre_res_0$CongenDataIn
     SDGRegions <- pre_res_0$SDGRegions
     RiskABO_Asumptions <- pre_res_0$RiskABO_Asumptions
@@ -2320,7 +2320,7 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
     fn_impute <- pre_res_0$fn_impute
     rm(pre_res_0)
 
-    pre_res_1 <- get_rawCS(CSinputfiles)
+    pre_res_1 <- get_rawCS(CSinputfiles, f_DiagnosticTest)
     CongenDataRaw <- pre_res_1$CongenDataRaw
     SyphDataRaw <- pre_res_1$SyphDataRaw
     rm(pre_res_1)

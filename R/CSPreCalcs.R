@@ -2,7 +2,7 @@
 #' @description A function that does blabla, blabla.
 #' @keywords internal
 #' @export
-get_precalcsCS <- function(namesinputfiles)
+get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
 {
   require(openxlsx)
 
@@ -23,8 +23,23 @@ get_precalcsCS <- function(namesinputfiles)
   zero_prev_adj = 1/100
   require(xlsx)
 
-  SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Data Entry", startRow=1,
-                                  cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  #SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Data Entry", startRow=1,
+  #                                cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+
+  shna <- openxlsx::sheets(openxlsx::loadWorkbook(fin_name.data.file))
+
+  if(is.element("Data Entry",shna))
+  {
+    SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Data Entry", startRow=1,
+                                    cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  } else if (is.element("Combined",shna))
+  {
+    SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Combined", startRow=1,
+                                    cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  }else
+  {
+    stop("The data entry form does not seem have correct sheet names (either Data Entry or Combined) please check")
+  }
 
   names(SyphData)[names(SyphData)=="Weight"] <- "Weight_for_Spectrum_fitting"
   names(SyphData)[names(SyphData)=="Midpoint study year"] <- "Year"
@@ -69,8 +84,9 @@ get_precalcsCS <- function(namesinputfiles)
   SyphData$DX_Code[is.na(SyphData$DX_Code)] <- 1
   SyphData <- subset(SyphData, !is.na(SyphData$`N tested`))
 
-  DiagnosticTest <- openxlsx::read.xlsx(fin_name.data.file,sheet="Diagnostic tests", rows=1:8,
-                                        cols= 1:6, check.names = FALSE, sep.names =" ")
+  DiagnosticTest <- f_DiagnosticTest
+  #DiagnosticTest <- openxlsx::read.xlsx(fin_name.data.file,sheet="Diagnostic tests", rows=1:8,
+  #                                      cols= 1:6, check.names = FALSE, sep.names =" ")
 
   colnames(DiagnosticTest)=c("STI name","Diagnostic test", "DX_code", "Adjustment_factor",
                              "Source_for_adjustment_factor", "Comments")
@@ -1155,7 +1171,7 @@ get_precalcsCS <- function(namesinputfiles)
 #' @description A function that does blabla, blabla.
 #' @keywords internal
 #' @export
-get_rawCS <- function(namesinputfiles)
+get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
 {
   require(openxlsx)
 
@@ -1176,8 +1192,23 @@ get_rawCS <- function(namesinputfiles)
   zero_prev_adj = 1/100
   require(xlsx)
 
-  SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Data Entry", startRow=1,
-                                  cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  #SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Data Entry", startRow=1,
+  #                                cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+
+  shna <- openxlsx::sheets(openxlsx::loadWorkbook(fin_name.data.file))
+
+  if(is.element("Data Entry",shna))
+  {
+    SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Data Entry", startRow=1,
+                                    cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  } else if (is.element("Combined",shna))
+  {
+    SyphData <- openxlsx::read.xlsx(fin_name.data.file,sheet="Combined", startRow=1,
+                                    cols= 1:(2 + length(namesCol)), check.names = FALSE, sep.names =" ")
+  }else
+  {
+    stop("The data entry form does not seem have correct sheet names (either Data Entry or Combined) please check")
+  }
 
   names(SyphData)[names(SyphData)=="Weight"] <- "Weight_for_Spectrum_fitting"
   names(SyphData)[names(SyphData)=="Midpoint study year"] <- "Year"
@@ -1221,8 +1252,9 @@ get_rawCS <- function(namesinputfiles)
   SyphData$DX_Code[is.na(SyphData$DX_Code)] <- 1
   SyphData <- subset(SyphData, !is.na(SyphData$`N tested`))
 
-  DiagnosticTest <- openxlsx::read.xlsx(fin_name.data.file,sheet="Diagnostic tests", rows=1:8,
-                                        cols= 1:6, check.names = FALSE, sep.names =" ")
+  DiagnosticTest <- f_DiagnosticTest
+  #DiagnosticTest <- openxlsx::read.xlsx(fin_name.data.file,sheet="Diagnostic tests", rows=1:8,
+  #                                      cols= 1:6, check.names = FALSE, sep.names =" ")
 
   colnames(DiagnosticTest)=c("STI name","Diagnostic test", "DX_code", "Adjustment_factor",
                              "Source_for_adjustment_factor", "Comments")
