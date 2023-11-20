@@ -99,7 +99,7 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
     if(!is.na(SyphData$DX_Code[ii]))
     {
       hr_adj <- ifelse(any(LowRisk==SyphData$'Data type'[ii]),high_risk_adj,1);
-      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
       res = SyphData$Prevalence[ii]*adj*hr_adj
     }
     res
@@ -109,7 +109,7 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
     res = NA;
     if(!is.na(SyphData$DX_Code[ii]))
     {
-      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
     }
     res
   } )
@@ -1267,7 +1267,7 @@ get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
     if(!is.na(SyphData$DX_Code[ii]))
     {
       hr_adj <- ifelse(any(LowRisk==SyphData$'Data type'[ii]),high_risk_adj,1);
-      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
       res = SyphData$Prevalence[ii]*adj*hr_adj
     }
     res
@@ -1277,7 +1277,7 @@ get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
     res = NA;
     if(!is.na(SyphData$DX_Code[ii]))
     {
-      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
     }
     res
   } )

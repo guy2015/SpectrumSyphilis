@@ -1864,7 +1864,7 @@ RunFitSyphilis0 <- function(name.data.file,
     if(!is.na(SyphData$DX_Code[ii]))
     {
       hr_adj <- ifelse(any(LowRisk==SyphData$'Data type'[ii]),high_risk_adj,1);
-      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
       res = SyphData$Prevalence[ii]*adj*hr_adj
     }
     res
@@ -1874,7 +1874,7 @@ RunFitSyphilis0 <- function(name.data.file,
     res = NA
     if(!is.na(SyphData$DX_Code[ii]))
     {
-      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
     }
     res
   } )
@@ -2067,7 +2067,7 @@ RunFitSyphilis1 <- function(name.data.file,
     res = NA;
     if(!is.na(SyphData$DX_Code[ii]))
     {
-      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
+      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
     }
     res
   } )
@@ -3646,14 +3646,14 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
 #' @param CSinputfiles list of four file names for (1) prevalence: syphilis prevalence used for prevalence estimates, (2) screening: data for Syphilis screen among pregnant women, (3) csdb: congenital syphilis prevalence, and (4) demographics: all demographic data, including all births by country. By default, this is set to NULL, which means data 2023 default data bases are used.
 #' @return A list of class "CSProj", of dataframes CongenDataOut, LongCongenDataOutForPlots, RegCSABO, LongRegCSABO, RegDataPrevInc, LongRegDataPrevIncForPlots containing national and regional congenital Syphilis estimates.
 #' @examples Not available
-CalcCS <- function(syphfitobj, list_countries=NULL, proj_years=1990:2025, min_year=2011, rSyph_preg=1, CSinputfiles=NULL)
+CalcCS <- function(syphfitobj, list_countries=NULL, proj_years=1990:2025, min_year=2011, rSyph_preg=1, CSinputfiles=NULL, f_DiagnosticTest)
 {
   atmfn <- c(LETTERS[sample(1:15)],letters[sample(1:15)])
   tmfn <- atmfn[1]
   for(xx in atmfn[-1]) tmfn <- paste(tmfn,xx, sep="")
   tmfn <- paste(tmfn,".xlsx", sep="")
   saveSyphfit(syphfitobj,tmfn)
-  result <- CalcCS_p(tmfn, list_countries, proj_years,min_year, rSyph_preg, CSinputfiles)
+  result <- CalcCS_p(tmfn, list_countries, proj_years,min_year, rSyph_preg, CSinputfiles, f_DiagnosticTest)
   if(file.exists(tmfn)) file.remove(tmfn)
   return(result)
 }
@@ -3802,7 +3802,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
   if(!(sex%in%c("both", "males", "females"))) return(NULL)
 
   #long_all_res <- data.frame()
-  temp_long_ctr <- ctr_df <- subset(all_res, ISO3==ctr_iso3)
+  temp_long_ctr <- ctr_df <- subset(all_res, ISO3==ctr_iso3 & Year%in%years)
 
 
   if(nrow(ctr_df)==0) return(NULL)
@@ -4109,7 +4109,7 @@ plot_ctr_SyphIncCases <- function(syphfits, ctr_iso3, sex="both", years= 2010:20
   if(!(sex%in%c("both", "males", "females"))) return(NULL)
 
   #long_all_res <- data.frame()
-  temp_long_ctr <- ctr_df <- subset(all_res, ISO3==ctr_iso3)
+  temp_long_ctr <- ctr_df <- subset(all_res, ISO3==ctr_iso3 & Year%in%years)
 
   if(nrow(ctr_df)==0) return(NULL)
   ctr <- ctr_df$Country[1]
@@ -4283,7 +4283,7 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
   {
     if((!yy%in% as.character(unique(dff_b$Year))))
     {
-      t_a <-  rbind(dff_b[1,])
+      t_b <-  rbind(dff_b[1,])
       t_b$Year <- yy
       t_b$value <- 0
       t_b$lower <- NA
@@ -4348,6 +4348,32 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
     dff_a <- rbind(dff_a,temp_xx)
   }
 
+  dff_ar <- subset(dff_a,datatype=="Reported")
+  dff_ap <- subset(dff_a,datatype!="Reported")
+
+
+  dff_arb <- data.frame()
+  for(mgp in unique(dff_ar$indicator))
+  {
+    tmp <- subset(dff_ar, indicator%in%mgp)
+    if(nrow(tmp)>=1)
+    {
+      for(yy in unique(tmp$Year))
+      {
+        tmp_yy <- subset(tmp,Year==yy)
+        if(nrow(tmp_yy)>=2)
+        {
+          tmp_yy$value <- mean(tmp_yy$value, na.rm=T)
+          tmp_yy <- tmp_yy[1,]
+        }
+        dff_arb <- rbind(dff_arb,tmp_yy)
+      }
+    }
+  }
+
+  dff_a <- rbind(dff_arb,dff_ap)
+
+  p_xa <- NULL
   #ANC Coverage
   p_xa <- dff_a%>%ggplot2::ggplot(aes(group=datatype, fill=datatype, color=datatype)) +
     geom_bar(aes(x=Year, y=100*value),stat="identity")+
@@ -4358,13 +4384,13 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       #legend.position="none",
       legend.position="bottom",
       #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -4417,13 +4443,13 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       legend.position="none",
       #legend.position="bottom",
       #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -4433,6 +4459,8 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
 
   all_plots_fig_S1 <- plot_grid(p_xa, p_xb,ncol = 2, labels = NULL, rel_widths = c(3,1))
   all_plots_fig_S1 <- plot_grid(all_plots_fig_S1, legend,ncol = 1, labels = NULL, rel_heights = c(1,.1))
+
+  ttle <- paste(ctr_name, ", EMTCT", sep="")
 
   title <- ggdraw() +
     draw_label(
@@ -4484,7 +4512,7 @@ plot_ctr_csreport <- function(xCSProj, ctr_iso3, years= 2010:2021)
   df=xCSProj$CongenDataIn
   ctr <- ctr_iso3
 
-  short_dfc <- subset(df,df$`ISO code`==ctr)
+  short_dfc <- subset(df,df$`ISO code`==ctr & df$Year%in%years)
   nobs <- nrow(short_dfc)
   if(nobs==0) return(NULL)
 
@@ -4501,22 +4529,22 @@ plot_ctr_csreport <- function(xCSProj, ctr_iso3, years= 2010:2021)
   long_dfc <- subset(long_dfc, !is.na(value))
   if(nrow(long_dfc)==0) return(NULL)
 
-  #ANC Coverage
+  #CS
   p_xa <- long_dfc%>%ggplot2::ggplot(aes(group=indicator, fill=indicator, color=indicator)) +
     geom_bar(aes(x=Year, y=value),stat="identity")+
-    labs(title = "Reported Cases", y = "Cases numbers",x="")+
+    labs(title = "CS-cases and outcomes", y = "Cases numbers",x="")+
     ylim(0,NA)+
     theme(
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       #legend.position="none",
       legend.position="bottom",
       #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -4578,7 +4606,7 @@ plot_ctr_CSProj <- function(xCSProj, ctr_iso3, years= 2010:2021)
   ctr <- ctr_iso3
 
   #
-  short_dfc <- subset(df,df$`ISO code`==ctr)
+  short_dfc <- subset(df,df$`ISO code`==ctr & df$Year%in%years)
   nobs <- nrow(short_dfc)
   if(nobs==0) return(NULL)
 
@@ -4587,7 +4615,7 @@ plot_ctr_CSProj <- function(xCSProj, ctr_iso3, years= 2010:2021)
   long_dfc <- data.frame(
     Country = ctr_name,
     indicator = c(rep("Cases not seen in ANC", nobs),rep("Screened but  not treated", nobs),rep("Attended ANC but not screened", nobs),rep("Not in ANC", nobs)),
-    Year = c(short_dfc$Year,short_dfc$Year,short_dfc$Year,short_dfc$Year,short_dfc$Year),
+    Year = c(short_dfc$Year,short_dfc$Year,short_dfc$Year,short_dfc$Year),
     value = c(short_dfc$`CS cases, not seen in ANC`,short_dfc$`CS cases, ANC-screened women not treated`, short_dfc$`CS cases, ANC women not screened`, short_dfc$`ABO, not seen in ANC`),#?
     datatype = "Estimated"
   )
@@ -4595,22 +4623,22 @@ plot_ctr_CSProj <- function(xCSProj, ctr_iso3, years= 2010:2021)
   long_dfc <- subset(long_dfc, !is.na(value))
   if(nrow(long_dfc)==0) return(NULL)
 
-  #ANC Coverage
+  #CS and outcome
   p_xa <- long_dfc%>%ggplot2::ggplot(aes(group=indicator, fill=indicator, color=indicator)) +
     geom_bar(aes(x=Year, y=value),stat="identity")+
-    labs(title = "Reported Cases", y = "Cases numbers",x="")+
+    labs(title = "CS-Cases and missed opportunities", y = "Cases numbers",x="")+
     ylim(0,NA)+
     theme(
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       #legend.position="none",
       legend.position="bottom",
       #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -4755,13 +4783,13 @@ plot_all_CSProj <- function(xCSProj, ctr_iso3, fbreaks=c(2010,2012,2016,2020), y
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       #legend.position="none",
       legend.position="bottom",
       #legend.position="top",
-      axis.line = element_line(size = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -4801,12 +4829,12 @@ plot_all_CSProj <- function(xCSProj, ctr_iso3, fbreaks=c(2010,2012,2016,2020), y
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       legend.position="none",
       #legend.position="bottom",
-      axis.line = element_line(size = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=11)
     )
@@ -4883,8 +4911,7 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
   df=xCSProj$LongCongenDataOutForPlots
   ctr <- ctr_iso3
 
-  dff_a <- subset(df,df$`ISO code`==ctr & indicator%in%c("Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)",
-                                                         "Syphilis-tested (1st ANC, %)","Women with >= 1 ANC visit (%)","Treated (%)") & Year%in%num_y & !is.na(value))
+  dff_a <- subset(df,df$`ISO code`==ctr & indicator%in%c("Syphilis-tested (1st ANC, %)","Women with >= 1 ANC visit (%)","Treated (%)") & Year%in%num_y & !is.na(value))
   ctr_name <- df$Country[df$`ISO code`==ctr][1]
 
   dff_a$value[dff_a$indicator=="Treated (%)"] <- dff_a$value[dff_a$indicator=="Treated (%)"]/100
@@ -4907,7 +4934,7 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
     {
       t_a <-  rbind(dff_a[1,],dff_a[1,],dff_a[1,],dff_a[1,])
       t_a$Year <- yy
-      t_a$value <- 0
+      t_a$value <- -1
       t_a$lower <- NA
       t_a$upper <- NA
       t_a$indicator=c("Treated (%)","Maternal syphilis prevalence","Syphilis-tested (1st ANC, %)","Women with >= 1 ANC visit (%)")
@@ -4917,32 +4944,45 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
 
   dff_a$mcolor <- as.factor(dff_a$Year)
   dff_a$Year <- as.numeric(as.character(dff_a$Year))
-  dff_a$indicator[dff_a$indicator=="Maternal syphilis prevalence (= F adult, from Spectrum minus 10%)"] = "Maternal syphilis prevalence"
-  dff_a$indicatortype <- ifelse(dff_a$indicator!="Maternal syphilis prevalence", "Treatment Cascade",
-                                "Maternal syphilis prevalence")
 
   dff_a$mgroup <- paste(dff_a$indicator, dff_a$datatype, sep=", ")
-  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, ANC Routine screening"] = "ANC Routine screening"
-  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, ANC Survey"] = "ANC Survey"
-  dff_a$mgroup[dff_a$mgroup=="Maternal syphilis prevalence, Projected"] = "Prevalence estimates"
   dff_a$mgroup[dff_a$mgroup=="Syphilis-tested (1st ANC, %), Projected"] = "% tested (1st ANC), Projected"
   dff_a$mgroup[dff_a$mgroup=="Syphilis-tested (1st ANC, %), Reported"] = "% tested (1st ANC), Reported"
   dff_a$mgroup[dff_a$mgroup=="Women with >= 1 ANC visit (%), Projected"] = "% with >= 1 ANC visit, Projected"
   dff_a$mgroup[dff_a$mgroup=="Women with >= 1 ANC visit (%), Reported"] = "% with >= 1 ANC visit, Reported"
-  v_levels <- c("Prevalence estimates",
-                "Treated (%), Projected","Treated (%), Reported",
+  v_levels <- c("Treated (%), Projected","Treated (%), Reported",
                 "% tested (1st ANC), Projected", "% with >= 1 ANC visit, Projected",
                 "ANC Routine screening", "ANC Survey", "% tested (1st ANC), Reported",
                 "% with >= 1 ANC visit, Reported")
 
   dff_a$mgroup <- factor(dff_a$mgroup, levels=v_levels)
 
-  dff_a$mshape <- "+";
-  dff_a$mshape[dff_a$mgroup%in%c("Treated (%), Reported","Syphilis-tested (1st ANC, %), Reported", "Women with >= 1 ANC visit (%), Reported",
-                                 "ANC Routine screening","ANC Survey")] = "*"
+  dff_ap <- data.frame()
+  for(mgp in unique(dff_a$mgroup))
+  {
+    tmp <- subset(dff_a, mgroup%in%mgp)
+    if(nrow(tmp)>=1)
+    {
+      for(yy in unique(tmp$Year))
+      {
+        tmp_yy <- subset(tmp,Year==yy)
+        if(nrow(tmp_yy)>=2)
+        {
+          tmp_yy$value <- mean(tmp_yy$value, na.rm=T)
+          tmp_yy <- tmp_yy[1,]
+        }
+        dff_ap <- rbind(dff_ap,tmp_yy)
+      }
+    }
+  }
 
   #ANC Coverage
-  p_xa <- dff_a%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
+  if(nrow(dff_ap)==0)
+  {
+    return(NULL)
+  }
+
+  p_xa <- dff_ap%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
     geom_bar(data= .%>%subset(datatype=="Reported" & indicator=="Women with >= 1 ANC visit (%)"), aes(x=Year, y=100*value),stat="identity")+
     geom_line(data= .%>%subset(datatype=="Projected" & indicator=="Women with >= 1 ANC visit (%)"), aes(x=Year, y=100*value))+
     geom_ribbon(data=.%>%subset(datatype=="Projected" & indicator=="Women with >= 1 ANC visit (%)"),
@@ -4954,13 +4994,13 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       #legend.position="none",
       legend.position="bottom",
       #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -4969,7 +5009,7 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
   p_xa$labels$fill <- p_xa$labels$colour <- "Source"
 
   ###Testing Coverage
-  p_xb <- dff_a%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
+  p_xb <- dff_ap%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
     geom_bar(data= .%>%subset(datatype=="Reported" & indicator=="Syphilis-tested (1st ANC, %)"), aes(x=Year, y=100*value),stat="identity")+
     geom_line(data= .%>%subset(datatype=="Projected" & indicator=="Syphilis-tested (1st ANC, %)"), aes(x=Year, y=100*value))+
     geom_ribbon(data=.%>%subset(datatype=="Projected" & indicator=="Syphilis-tested (1st ANC, %)"),
@@ -4981,13 +5021,13 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       #legend.position="none",
       legend.position="bottom",
       #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -4996,7 +5036,7 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
   p_xb$labels$fill <- p_xb$labels$colour <- "Source"
 
   #Treatment Coverage
-  p_xc <- dff_a%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
+  p_xc <- dff_ap%>%ggplot2::ggplot(aes(group=mgroup, fill=mgroup, color=mgroup)) +
     geom_bar(data= .%>%subset(datatype=="Reported" & indicator=="Treated (%)"), aes(x=Year, y=100*value),stat="identity")+
     geom_line(data= .%>%subset(datatype=="Projected" & indicator=="Treated (%)"), aes(x=Year, y=100*value))+
     geom_ribbon(data=.%>%subset(datatype=="Projected" & indicator=="Treated (%)"),
@@ -5008,13 +5048,13 @@ plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years=
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       #legend.position="none",
       legend.position="bottom",
       #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       strip.text=element_text(size=12),
       legend.text=element_text(size=11)
@@ -5121,11 +5161,11 @@ plot_GlobSyphPerBirth <- function(xCSProj, proj_years=c(2012,2016,2020))
       axis.title.y = element_text(size = rel(0.8)),
       axis.title.x = element_text(size = rel(0.8)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.05, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.05, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       legend.position="bottom",
-      axis.line = element_line(size = 0.5, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.01, linetype = 2,
+      axis.line = element_line(linewidth = 0.5, colour = "grey"),
+      panel.grid.minor = element_line(linewidth = 0.01, linetype = 2,
                                       colour = "grey")
     )
 
@@ -5201,7 +5241,7 @@ plot_GlobABO <- function(xCSProj, proj_years=c(2012,2016,2020))
       axis.title.x = element_text(size = rel(0.8)),
       axis.text.x = element_text(angle = 45),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.05, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.05, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       legend.position="bottom",
       axis.line = element_line(linewidth = 0.5, colour = "grey"),
@@ -5277,12 +5317,12 @@ plot_GlobMatSypPrev <- function(xCSProj, proj_years=c(2010:2021), fbreaks=c(2010
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       legend.position="none",
       #legend.position="bottom",
-      axis.line = element_line(size = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       #strip.text=element_text(size=5),
       legend.text=element_text(size=10)
@@ -5429,11 +5469,11 @@ plot_GlobPrevIncCases <- function(xCSProj, proj_years=c(2010:2021), fbreaks=c(20
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
       panel.background = element_rect(fill = NA),
-      panel.grid.major = element_line(size = 0.5, colour = "grey",linetype = 2),
+      panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       legend.position="none",
-      axis.line = element_line(size = 1, colour = "grey"),
-      panel.grid.minor = element_line(size = 0.25, linetype = 2,
+      axis.line = element_line(linewidth = 1, colour = "grey"),
+      panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
       legend.text=element_text(size=10)
     )
