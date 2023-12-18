@@ -1954,7 +1954,7 @@ RunFitSyphilis0 <- function(name.data.file,
                                  year_predict=in_year_predict, zerprev_adj=zero_prev_adj, MtoFRatio,
                                  LRtoHRPOR = f_LRtoHRPOR,
                                  fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile) # Running the code
-  class(result) <- "Syph-fit"
+  if(!is.null(result)) class(result) <- "Syph-fit"
   invisible(result)
 }
 
@@ -2177,7 +2177,7 @@ RunFitSyphilis1 <- function(name.data.file,
                                  year_predict=in_year_predict, zerprev_adj=zero_prev_adj, MtoFRatio,
                                  LRtoHRPOR = f_LRtoHRPOR,
                                  fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile) # Running the code
-  class(result) <- "Syph-fit"
+  if(!is.null(result)) class(result) <- "Syph-fit"
   invisible(result)
 }
 
@@ -2247,7 +2247,7 @@ RunFitSyphilis <- function(name.data.file,
   {
     stop("The data base is not appropriate")
   }
-  class(result) <- "Syph-fit"
+  if(!is.null(result)) class(result) <- "Syph-fit"
   invisible(result)
 }
 
@@ -2328,6 +2328,8 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
 
   fittedprevIncfile <- syphfitfile
   IncideAndPrevalence <- openxlsx::read.xlsx(fittedprevIncfile, sheet="SYPH_RBootstrap_All")
+  if(is.null(IncideAndPrevalence)) return(NULL)
+
   names(IncideAndPrevalence)[names(IncideAndPrevalence)=="WHO_Region"] <- "WHO Region"
   prevdata <- SyphDataRaw
 
@@ -2355,7 +2357,8 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
 
   if(!is.null(list_countries))
   {
-    all_countries_iso <- unique(CongenDataIn$`ISO code`[is.element(CongenDataIn$Country,list_countries)])
+    #all_countries_iso <- unique(CongenDataIn$`ISO code`[is.element(CongenDataIn$Country,list_countries)])
+    all_countries_iso <- unique(CongenDataIn$`ISO code`[is.element(CongenDataIn$`ISO code`,list_countries)])
   }
   results <- list()
 
@@ -3690,6 +3693,8 @@ saveCS <- function(xCSProj, fname=NULL)
 #' @examples Not available
 plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
 {
+  if(is.null(syphfits)) return(NULL)
+
   require(ggplot2)
   library(tidyverse)
   library(scales)
@@ -3710,6 +3715,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
   ctr <- ctr_iso3
 
   all_res <- openxlsx::read.xlsx(mout_file,sheet="SYPH_RBootstrap_All")
+  if(is.null(all_res)) return(NULL)
   all_res$datatype <- "Model"
   all_res$weight <- 1
 
@@ -3921,9 +3927,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
   temp_all_res$sex[temp_all_res$population=="FSW"] <- "Females"
   temp_all_res$sex[temp_all_res$population=="Other"] <- "BothSexes"
 
-
   long_ctr <- data.frame();
-  #mtitle <- paste(ctr," Syphilis prevalence trend among adults (15-49 y)", sep=",")
   mtitle <- "Syphilis prevalence trend among adults (15-49 y)"
 
   if(sex=="both")
@@ -3933,13 +3937,11 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
   {
     long_ctr <- rbind(long_ctr_men,long_ctr_msm,temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Males")
-    #mtitle <- paste(ctr," Syphilis prevalence trend among males (15-49 y)", sep=",")
     mtitle <- "Syphilis prevalence trend among males (15-49 y)"
   } else if (sex=="females")
   {
     long_ctr <- rbind(long_ctr_women,long_ctr_fsw, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Females")
-    #mtitle <- paste(ctr," Syphilis prevalence trend among females (15-49 y)", sep=",")
     mtitle <- "Syphilis prevalence trend among females (15-49 y)"
   }
 
@@ -3951,11 +3953,14 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
                                                           "Prisoners, Men","Prisoners, Women","Wives of PWID","Survey LowRisk Men+Women",
                                                           "Other"))
 
+  long_ctr$weight <- ifelse(long_ctr$weight==1,16,1)
+  long_ctr$weight <- factor(long_ctr$weight, levels=c("16","1"))
+
   all_plots_fig_S1 <- long_ctr%>%filter(Country==ctr & indicator=="PrevalenceRate")%>%ggplot(aes(x=Year, y=100*Median, ymin = 100*Lower, ymax= 100*Upper,color=population,fill=population))+
     geom_line(data =. %>% filter(Country==ctr& datatype=="Model"), aes(Year, 100*BestFit)) +
     geom_ribbon(data =. %>% filter(Country==ctr& datatype=="Model"),alpha=0.2,linetype=0)+
     geom_pointrange(data =. %>% filter(Country==ctr& datatype!="Model"), position=position_jitter(w = 0.05, h = 0),#position=position_jitter(width=0.5),
-                    linetype='solid', aes(size=weight),size=0.75)+
+                    linetype='solid', aes(shape=weight)) + guides(shape = "none") +
     expand_limits(y = 0) +
     labs(title = mtitle, x = "Year", y="Test-adjusted prevalence, active syphilis (%)") +
     theme_minimal() +
@@ -3999,6 +4004,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
 #' @examples Not available
 plot_ctr_SyphIncCases <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
 {
+  if(is.null(syphfits)) return(NULL)
   require(ggplot2)
   library(tidyverse)
   library(scales)
@@ -4019,6 +4025,7 @@ plot_ctr_SyphIncCases <- function(syphfits, ctr_iso3, sex="both", years= 2010:20
   ctr <- ctr_iso3
 
   all_res <- openxlsx::read.xlsx(mout_file,sheet="SYPH_RBootstrap_All")
+  if(is.null(all_res)) return(NULL)
   all_res$datatype <- "Model"
   all_res$weight <- 1
 
@@ -4228,6 +4235,8 @@ plot_ctr_SyphIncCases <- function(syphfits, ctr_iso3, sex="both", years= 2010:20
 #' @examples Not available
 plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
 {
+  if(is.null(xCSProj)) return(NULL)
+
   require(ggplot2)
   library(tidyverse)
   library(scales)
@@ -4279,6 +4288,9 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
   dff_b <- subset(df,df$`ISO code`==ctr & indicator%in%c("CS / 100,000 live births") & Year%in%num_y & !is.na(value))
   dff_b$indicator[dff_b$indicator=="CS / 100,000 live births"] <- "CS case rate\n per 100,000 live births"
   dff_b$Year <- factor(dff_b$Year, levels=llev_y)
+
+  nff_b <- nrow(dff_b)
+
   for(yy in llev_y)
   {
     if((!yy%in% as.character(unique(dff_b$Year))))
@@ -4457,7 +4469,11 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
 
   p_xb$labels$fill <- p_xb$labels$colour <- "Source"
 
-  all_plots_fig_S1 <- plot_grid(p_xa, p_xb,ncol = 2, labels = NULL, rel_widths = c(3,1))
+  all_plots_fig_S1 <- p_xa
+  if(nff_b!=0){
+    all_plots_fig_S1 <- plot_grid(p_xa, p_xb,ncol = 2, labels = NULL, rel_widths = c(3,1))
+  }
+
   all_plots_fig_S1 <- plot_grid(all_plots_fig_S1, legend,ncol = 1, labels = NULL, rel_heights = c(1,.1))
 
   ttle <- paste(ctr_name, ", EMTCT", sep="")
@@ -4495,6 +4511,7 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
 #' @examples Not available
 plot_ctr_csreport <- function(xCSProj, ctr_iso3, years= 2010:2021)
 {
+  if(is.null(xCSProj)) return(NULL)
   require(ggplot2)
   library(tidyverse)
   library(scales)
@@ -4589,6 +4606,7 @@ plot_ctr_csreport <- function(xCSProj, ctr_iso3, years= 2010:2021)
 #' @examples Not available
 plot_ctr_CSProj <- function(xCSProj, ctr_iso3, years= 2010:2021)
 {
+  if(is.null(xCSProj)) return(NULL)
   require(ggplot2)
   library(tidyverse)
   library(scales)
@@ -4685,6 +4703,7 @@ plot_ctr_CSProj <- function(xCSProj, ctr_iso3, years= 2010:2021)
 #' @examples Not available
 plot_all_CSProj <- function(xCSProj, ctr_iso3, fbreaks=c(2010,2012,2016,2020), years= 2010:2021)
 {
+  if(is.null(xCSProj)) return(NULL)
   require(ggplot2)
   library(tidyverse)
   library(scales)
@@ -4895,6 +4914,7 @@ plot_all_CSProj <- function(xCSProj, ctr_iso3, fbreaks=c(2010,2012,2016,2020), y
 #' @examples Not available
 plot_ctr_Coverage <- function(xCSProj, ctr_iso3, indicator="ANC Coverage",years= 2010:2021)
 {
+  if(is.null(xCSProj)) return(NULL)
   require(ggplot2)
   library(tidyverse)
   library(scales)

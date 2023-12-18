@@ -11,7 +11,7 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
 
   fin_name.data.file <- namesinputfiles$prevalence
   fin_name_cs_screening <- namesinputfiles$screening
-  fin_name_cs_db <- namesinputfiles$csdb
+  #fin_name_cs_db <- namesinputfiles$csdb
   fin_name_allbirths <- namesinputfiles$demographics
 
   namesCol = c("Country","ISO3" ,"ISO3_letters", "WHO_region","Data_type", "Population_code", "Sex", "Year", "DX_Code",
@@ -351,7 +351,146 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
   #########################################################################################################
   #########################################################################################################
   #Reading Eline's data
-  ElWb_CongenSyphdb <- openxlsx::read.xlsx(fin_name_cs_db, sheet="CongenSyph db")[,1:30]
+  wb_cs_parameters <- openxlsx::loadWorkbook(fin_name_cs_screening)
+  #ElWb_CongenSyphdb <- openxlsx::read.xlsx(fin_name_cs_db, sheet="CongenSyph db")
+
+  temp_cs_reported <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Reported CS cases")
+  temp_cs_abos <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs")
+  temp_early_anc <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Early ANC")
+  temp_anc_cov <- openxlsx::read.xlsx(wb_cs_parameters, sheet="ANC coverage")
+  temp_scr_cov <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Screening coverage")
+  temp_tre_cov <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Treatment coverage")
+
+  temp_cs_reported$SpatialDimValueCode[temp_cs_reported$SpatialDimValueCode=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_early_anc$ISO3[temp_early_anc$ISO3=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_anc_cov$ISO3_Letter[temp_anc_cov$ISO3_Letter=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_scr_cov$SpatialDimValueCode[temp_scr_cov$SpatialDimValueCode=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_tre_cov$SpatialDimValueCode[temp_tre_cov$SpatialDimValueCode=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+
+
+  temp_anc_cov$WHO.region[temp_anc_cov$Country == "CHECK AGAIN"] <- "EUR"
+  temp_anc_cov$Country[temp_anc_cov$Country == "CHECK AGAIN"] <- "Kosovo"
+
+  #tem_ctr_names <- unique(c(temp_cs_reported$Location, temp_early_anc$Country))
+  temp_ctr_iso <- unique(c(temp_cs_reported$SpatialDimValueCode, temp_early_anc$ISO3, temp_anc_cov$ISO3_Letter,
+                           temp_scr_cov$SpatialDimValueCode, temp_tre_cov$SpatialDimValueCode))
+
+  temp_ctr_iso <- temp_ctr_iso[which(sapply(temp_ctr_iso, function(xchar) nchar(xchar))==3)]
+
+  temp_ctr_name <- sapply(temp_ctr_iso, function(xchar)
+    unique(c(temp_cs_reported$Location[which(temp_cs_reported$SpatialDimValueCode==xchar)],
+             temp_early_anc$Country[which(temp_early_anc$ISO3==xchar)],
+             temp_anc_cov$Country[which(temp_anc_cov$ISO3_Letter==xchar)],
+             temp_scr_cov$Location[which(temp_scr_cov$SpatialDimValueCode==xchar)],
+             temp_tre_cov$Location[which(temp_tre_cov$SpatialDimValueCode==xchar)]))[1]
+  )
+
+  temp_ctr_whoregi <-  sapply(temp_ctr_iso, function(xchar){
+    vxx <- c(temp_cs_reported$ParentLocationCode[which(temp_cs_reported$SpatialDimValueCode==xchar)],
+             temp_early_anc$Region[which(temp_early_anc$ISO3==xchar)],
+             temp_anc_cov$WHO.region[which(temp_anc_cov$ISO3_Letter==xchar)],
+             temp_scr_cov$ParentLocationCode[which(temp_scr_cov$SpatialDimValueCode==xchar)],
+             temp_tre_cov$ParentLocationCode[which(temp_tre_cov$SpatialDimValueCode==xchar)]);
+    vxx <- sapply(vxx, function(xchar) {rr <- xchar; if(!is.na(rr)) if(nchar(rr)>=4) rr <- substr(rr,1,3); rr})
+    unique(vxx)[1]
+  }
+  )
+
+  table_of_ctries <- data.frame(COUNTRY=temp_ctr_name, REGION_WHO = temp_ctr_whoregi, ISO.code=temp_ctr_iso)
+  table_of_ctries <- table_of_ctries[!is.na(table_of_ctries$COUNTRY),]
+
+  ElWb_CongenSyphdb <- data.frame()
+  for(ii in seq_len(nrow(table_of_ctries)))
+  {
+    t_ctr_name <- table_of_ctries$COUNTRY[ii]
+    t_ctr_iso3 <- table_of_ctries$ISO.code[ii]
+    t_ctr_whor <- table_of_ctries$REGION_WHO[ii]
+
+    t_years <- 1990:2022
+    #
+    t_cs_reported_num <- sapply(t_years, function(t_y) {
+      ncsr <- NA
+      temp_dat <- subset(temp_cs_reported, Period==t_y & SpatialDimValueCode==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        ncsr <- mean(temp_dat$FactValueNumeric, na.rm=T)
+      }
+      ncsr
+    })
+    #
+    t_prect_syphTests <- sapply(t_years, function(t_y) {
+      prect <- NA
+      temp_dat <- subset(temp_scr_cov, Period==t_y & SpatialDimValueCode==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        prect <- mean(temp_dat$FactValueNumeric, na.rm=T)
+      }
+      prect
+    })
+    #
+    t_prect_treat <- sapply(t_years, function(t_y) {
+      prect <- NA
+      temp_dat <- subset(temp_tre_cov, Period==t_y & SpatialDimValueCode==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        prect <- mean(temp_dat$FactValueNumeric, na.rm=T)
+      }
+      prect
+    })
+
+    #
+    t_anccov_pct <- sapply(t_years, function(t_y) {
+      prect <- NA
+      temp_dat <- subset(temp_anc_cov, Year==t_y & ISO3_Letter==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        prect <- mean(temp_dat$Data.to.use, na.rm=T)
+      }
+      prect
+    })
+
+    idxselect <- which(!is.na(t_cs_reported_num)|(!is.na(t_prect_syphTests)) | (!is.na(t_anccov_pct)) | (!is.na(t_prect_treat)))
+
+    if(length(idxselect)>=1)
+    {
+      xx_temp_ElWb_CongenSyphdb <- data.frame(
+        'Rank,.2012.ABO.cases'  = NA,
+        'Rank,.2016.ABO.cases' = NA,
+        'Rank.2012,.CS.case.RATE' = NA,
+        'Rank.2016,.CS.case.RATE' = NA,
+        COUNTRY = t_ctr_name,
+        REGION_WHO = t_ctr_whor,
+        ISO.code = t_ctr_iso3,
+        ISO3nmb = NA,
+        Year = t_years[idxselect],
+        'Live.Births' = NA,
+        'Still.births' = NA,
+        'Stillbirths,.Blencowe.&.Hogan.2016' = NA,
+        Pregnancies = NA,
+        'Still/Live.births' = NA,
+        'Source.of.Live.and/or.Stillbirths' = NA,
+        'Women.with.>=.1.ANC.visit,.%' = t_anccov_pct[idxselect],
+        'Source.of.ANC1' = NA,
+        'N.tested.(1st.ANC.visit)' = NA,
+        'N.1st.visits' = NA,
+        'Syphilis-tested.%.(1st.ANC)' = t_prect_syphTests[idxselect], #??? CHECK THIS. WITH JANE?
+        'N.tested.(any.visit.ANC)' = NA,
+        'N.any.ANC.visits' = NA,
+        'Syphilis-tested.%.(any.ANC.visit)' = t_prect_syphTests[idxselect],
+        'Source.of.Test.coverage'= NA,
+        'ANC.women.with.syphilis,.treated,.N' = NA,
+        'Syphilis-infected.ANC' = NA,
+        'Treated.%' = t_prect_treat[idxselect],
+        'Source.of.Treated'= NA,
+        'Congenital.syphilis.case.REPORTS'= t_cs_reported_num[idxselect],
+        'CS.case.report.rate' =  NA)
+    }
+
+    ElWb_CongenSyphdb <- rbind(ElWb_CongenSyphdb,xx_temp_ElWb_CongenSyphdb)
+  }
+
+
+
   ElWb_CongenSyphdb$COUNTRY[ElWb_CongenSyphdb$COUNTRY=="South-Sudan"] <- "South Sudan"
 
   names(ElWb_CongenSyphdb) <- c("Rank, 2012 ABO cases", "Rank, 2016 ABO cases", "Rank 2012, CS case RATE", "Rank 2016, CS case RATE", "Country","WHO Region",
@@ -942,21 +1081,26 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
   ################################################################################
   ################################################################################
   ################################################################################
-  ElWb_RiskABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=2:5, cols=1:10)
+  #ElWb_RiskABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=2:5, cols=1:10)
+  ElWb_RiskABO_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs",rows=2:5, cols=1:10)
   names(ElWb_RiskABO_Asumptions)<- c("X1","treated mothers", "CS, risk: liveborn", "CS risk: stillbirth", "CS risk: neonatal death",
                                      "CS risk: prematurity or LBW", "All outcomes", "LB on ABO risk assumption", "UB on ABO risk assumption",
                                      "Variance on ABO risk assumption")
 
-  ElWb_SE_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=11:17, cols=1:3)
-  ElWb_ABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=10:17, cols=10:14)
+  #ElWb_SE_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=11:17, cols=1:3)
+  #ElWb_ABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=10:17, cols=10:14)
+  ElWb_SE_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs", rows=11:17, cols=1:3)
+  ElWb_ABO_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs", rows=10:17, cols=10:14)
   names(ElWb_ABO_Asumptions) <- c("WHO Regions", "Indicator","ABO risk, treated mothers","Average timing of first ANC", "Number of Pregnancies, 2016")
   #
-  ElWb_TimingANC_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=20:30, cols=1:10)
+  #ElWb_TimingANC_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=20:30, cols=1:10)
+  ElWb_TimingANC_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs", rows=20:30, cols=1:10)
   names(ElWb_TimingANC_Asumptions) <- c("Code, in data", "Timing of first ANC", "Median weeks in the pregnancy, of first ANC", "ABO risk probability/treated syphilis-infected mother",
                                         "Minimum (weeks)", "Maximum (weeks)", "Average (weeks)", "ABO risk probability/untreated syphilis-infected mother", "Added risk, from early to late",
                                         "Frequency")
 
-  ElWb_EarlyANC <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Early ANC",rows=1:528, cols=1:21)
+  #ElWb_EarlyANC <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Early ANC",rows=1:528, cols=1:21)
+  ElWb_EarlyANC <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Early ANC",rows=1:528, cols=1:21)
   names(ElWb_EarlyANC) <- c("ISO3", "Country", "Region", "Start year", "End year", "Coverage early ANC", "N early ANC", "Code, first ANC threshold time",
                             "Sample size", "Source code", "Source for Source code", "Early ANC", "Late ANC", "All women", "Before cut-off", "After cut-off",
                             "ABO risk, average, treated women", "Time first ANC, before cut-off", "Time first ANC, after cut-off",
@@ -1180,7 +1324,7 @@ get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
 
   fin_name.data.file <- namesinputfiles$prevalence
   fin_name_cs_screening <- namesinputfiles$screening
-  fin_name_cs_db <- namesinputfiles$csdb
+  #fin_name_cs_db <- namesinputfiles$csdb
   fin_name_allbirths <- namesinputfiles$demographics
 
   namesCol = c("Country","ISO3" ,"ISO3_letters", "WHO_region","Data_type", "Population_code", "Sex", "Year", "DX_Code",
@@ -1521,7 +1665,143 @@ get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
   #########################################################################################################
 
   #Reading Eline's data
-  ElWb_CongenSyphdb <- openxlsx::read.xlsx(fin_name_cs_db, sheet="CongenSyph db")[,1:30]
+  #ElWb_CongenSyphdb <- openxlsx::read.xlsx(fin_name_cs_db, sheet="CongenSyph db")[,1:30]
+  wb_cs_parameters <- openxlsx::loadWorkbook(fin_name_cs_screening)
+
+  temp_cs_reported <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Reported CS cases")
+  temp_cs_abos <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs")
+  temp_early_anc <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Early ANC")
+  temp_anc_cov <- openxlsx::read.xlsx(wb_cs_parameters, sheet="ANC coverage")
+  temp_scr_cov <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Screening coverage")
+  temp_tre_cov <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Treatment coverage")
+
+  temp_cs_reported$SpatialDimValueCode[temp_cs_reported$SpatialDimValueCode=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_early_anc$ISO3[temp_early_anc$ISO3=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_anc_cov$ISO3_Letter[temp_anc_cov$ISO3_Letter=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_scr_cov$SpatialDimValueCode[temp_scr_cov$SpatialDimValueCode=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+  temp_tre_cov$SpatialDimValueCode[temp_tre_cov$SpatialDimValueCode=="RKS"] <- "XKX" #Harmonizing ISO3 for Kosovo
+
+
+  temp_anc_cov$WHO.region[temp_anc_cov$Country == "CHECK AGAIN"] <- "EUR"
+  temp_anc_cov$Country[temp_anc_cov$Country == "CHECK AGAIN"] <- "Kosovo"
+
+  #tem_ctr_names <- unique(c(temp_cs_reported$Location, temp_early_anc$Country))
+  temp_ctr_iso <- unique(c(temp_cs_reported$SpatialDimValueCode, temp_early_anc$ISO3, temp_anc_cov$ISO3_Letter,
+                           temp_scr_cov$SpatialDimValueCode, temp_tre_cov$SpatialDimValueCode))
+
+  temp_ctr_iso <- temp_ctr_iso[which(sapply(temp_ctr_iso, function(xchar) nchar(xchar))==3)]
+
+  temp_ctr_name <- sapply(temp_ctr_iso, function(xchar)
+    unique(c(temp_cs_reported$Location[which(temp_cs_reported$SpatialDimValueCode==xchar)],
+             temp_early_anc$Country[which(temp_early_anc$ISO3==xchar)],
+             temp_anc_cov$Country[which(temp_anc_cov$ISO3_Letter==xchar)],
+             temp_scr_cov$Location[which(temp_scr_cov$SpatialDimValueCode==xchar)],
+             temp_tre_cov$Location[which(temp_tre_cov$SpatialDimValueCode==xchar)]))[1]
+  )
+
+  temp_ctr_whoregi <-  sapply(temp_ctr_iso, function(xchar){
+    vxx <- c(temp_cs_reported$ParentLocationCode[which(temp_cs_reported$SpatialDimValueCode==xchar)],
+             temp_early_anc$Region[which(temp_early_anc$ISO3==xchar)],
+             temp_anc_cov$WHO.region[which(temp_anc_cov$ISO3_Letter==xchar)],
+             temp_scr_cov$ParentLocationCode[which(temp_scr_cov$SpatialDimValueCode==xchar)],
+             temp_tre_cov$ParentLocationCode[which(temp_tre_cov$SpatialDimValueCode==xchar)]);
+    vxx <- sapply(vxx, function(xchar) {rr <- xchar; if(!is.na(rr)) if(nchar(rr)>=4) rr <- substr(rr,1,3); rr})
+    unique(vxx)[1]
+  }
+  )
+
+  table_of_ctries <- data.frame(COUNTRY=temp_ctr_name, REGION_WHO = temp_ctr_whoregi, ISO.code=temp_ctr_iso)
+  table_of_ctries <- table_of_ctries[!is.na(table_of_ctries$COUNTRY),]
+
+  ElWb_CongenSyphdb <- data.frame()#
+  for(ii in seq_len(nrow(table_of_ctries)))
+  {
+    t_ctr_name <- table_of_ctries$COUNTRY[ii]
+    t_ctr_iso3 <- table_of_ctries$ISO.code[ii]
+    t_ctr_whor <- table_of_ctries$REGION_WHO[ii]
+
+    t_years <- 1990:2022
+    #
+    t_cs_reported_num <- sapply(t_years, function(t_y) {
+      ncsr <- NA
+      temp_dat <- subset(temp_cs_reported, Period==t_y & SpatialDimValueCode==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        ncsr <- mean(temp_dat$FactValueNumeric, na.rm=T)
+      }
+      ncsr
+    })
+    #
+    t_prect_syphTests <- sapply(t_years, function(t_y) {
+      prect <- NA
+      temp_dat <- subset(temp_scr_cov, Period==t_y & SpatialDimValueCode==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        prect <- mean(temp_dat$FactValueNumeric, na.rm=T)
+      }
+      prect
+    })
+    #
+    t_prect_treat <- sapply(t_years, function(t_y) {
+      prect <- NA
+      temp_dat <- subset(temp_tre_cov, Period==t_y & SpatialDimValueCode==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        prect <- mean(temp_dat$FactValueNumeric, na.rm=T)
+      }
+      prect
+    })
+
+    #
+    t_anccov_pct <- sapply(t_years, function(t_y) {
+      prect <- NA
+      temp_dat <- subset(temp_anc_cov, Year==t_y & ISO3_Letter==t_ctr_iso3)
+      if(nrow(temp_dat)>=1)
+      {
+        prect <- mean(temp_dat$Data.to.use, na.rm=T)
+      }
+      prect
+    })
+
+    idxselect <- which(!is.na(t_cs_reported_num)|(!is.na(t_prect_syphTests)) | (!is.na(t_anccov_pct)) | (!is.na(t_prect_treat)))
+    if(length(idxselect)>=1)
+    {
+      xx_temp_ElWb_CongenSyphdb <- data.frame(
+        'Rank,.2012.ABO.cases'  = NA,
+        'Rank,.2016.ABO.cases' = NA,
+        'Rank.2012,.CS.case.RATE' = NA,
+        'Rank.2016,.CS.case.RATE' = NA,
+        COUNTRY = t_ctr_name,
+        REGION_WHO = t_ctr_whor,
+        ISO.code = t_ctr_iso3,
+        ISO3nmb = NA,
+        Year = t_years[idxselect],
+        'Live.Births' = NA,
+        'Still.births' = NA,
+        'Stillbirths,.Blencowe.&.Hogan.2016' = NA,
+        Pregnancies = NA,
+        'Still/Live.births' = NA,
+        'Source.of.Live.and/or.Stillbirths' = NA,
+        'Women.with.>=.1.ANC.visit,.%' = t_anccov_pct[idxselect],
+        'Source.of.ANC1' = NA,
+        'N.tested.(1st.ANC.visit)' = NA,
+        'N.1st.visits' = NA,
+        'Syphilis-tested.%.(1st.ANC)' = t_prect_syphTests[idxselect], #??? CHECK THIS. WITH JANE?
+        'N.tested.(any.visit.ANC)' = NA,
+        'N.any.ANC.visits' = NA,
+        'Syphilis-tested.%.(any.ANC.visit)' = t_prect_syphTests[idxselect],
+        'Source.of.Test.coverage'= NA,
+        'ANC.women.with.syphilis,.treated,.N' = NA,
+        'Syphilis-infected.ANC' = NA,
+        'Treated.%' = t_prect_treat[idxselect],
+        'Source.of.Treated'= NA,
+        'Congenital.syphilis.case.REPORTS'= t_cs_reported_num[idxselect],
+        'CS.case.report.rate' =  NA)
+    }
+
+    ElWb_CongenSyphdb <- rbind(ElWb_CongenSyphdb,xx_temp_ElWb_CongenSyphdb)
+  }
+
   ElWb_CongenSyphdb$COUNTRY[ElWb_CongenSyphdb$COUNTRY=="South-Sudan"] <- "South Sudan"
 
   names(ElWb_CongenSyphdb) <- c("Rank, 2012 ABO cases", "Rank, 2016 ABO cases", "Rank 2012, CS case RATE", "Rank 2016, CS case RATE", "Country","WHO Region",
@@ -1799,23 +2079,28 @@ get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
   ################################################################################
 
 
-  ElWb_RiskABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=2:5, cols=1:10)
+  #ElWb_RiskABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=2:5, cols=1:10)
+  ElWb_RiskABO_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs",rows=2:5, cols=1:10)
   names(ElWb_RiskABO_Asumptions)<- c("X1","treated mothers", "CS, risk: liveborn", "CS risk: stillbirth", "CS risk: neonatal death",
                                      "CS risk: prematurity or LBW", "All outcomes", "LB on ABO risk assumption", "UB on ABO risk assumption",
                                      "Variance on ABO risk assumption")
 
-  ElWb_SE_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=11:17, cols=1:3)
-  ElWb_ABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=10:17, cols=10:14)
+  #ElWb_SE_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=11:17, cols=1:3)
+  #ElWb_ABO_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=10:17, cols=10:14)
+  ElWb_SE_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs", rows=11:17, cols=1:3)
+  ElWb_ABO_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs", rows=10:17, cols=10:14)
   names(ElWb_ABO_Asumptions) <- c("WHO Regions", "Indicator","ABO risk, treated mothers","Average timing of first ANC", "Number of Pregnancies, 2016")
 
 
   #
-  ElWb_TimingANC_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=20:30, cols=1:10)
+  #ElWb_TimingANC_Asumptions <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Assumptions",rows=20:30, cols=1:10)
+  ElWb_TimingANC_Asumptions <- openxlsx::read.xlsx(wb_cs_parameters, sheet="CS - ABOs", rows=20:30, cols=1:10)
   names(ElWb_TimingANC_Asumptions) <- c("Code, in data", "Timing of first ANC", "Median weeks in the pregnancy, of first ANC", "ABO risk probability/treated syphilis-infected mother",
                                         "Minimum (weeks)", "Maximum (weeks)", "Average (weeks)", "ABO risk probability/untreated syphilis-infected mother", "Added risk, from early to late",
                                         "Frequency")
 
-  ElWb_EarlyANC <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Early ANC",rows=1:528, cols=1:21)
+  #ElWb_EarlyANC <- openxlsx::read.xlsx(fin_name_cs_db,sheet="Early ANC",rows=1:528, cols=1:21)
+  ElWb_EarlyANC <- openxlsx::read.xlsx(wb_cs_parameters, sheet="Early ANC",rows=1:528, cols=1:21)
   names(ElWb_EarlyANC) <- c("ISO3", "Country", "Region", "Start year", "End year", "Coverage early ANC", "N early ANC", "Code, first ANC threshold time",
                             "Sample size", "Source code", "Source for Source code", "Early ANC", "Late ANC", "All women", "Before cut-off", "After cut-off",
                             "ABO risk, average, treated women", "Time first ANC, before cut-off", "Time first ANC, after cut-off",
