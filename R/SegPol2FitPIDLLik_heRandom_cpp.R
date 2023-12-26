@@ -484,7 +484,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
                                 LRtoHRPOR,
                                 fn_min_year_last_data,
                                 fn_cores=4,
-                                autosavefile=TRUE)
+                                autosavefile=TRUE,
+                                fn_filter_survey_LR = NULL)
 {
   PopSize = PopSizeBoth;
   PopSizeMales = PopSizeMen;
@@ -795,13 +796,45 @@ fCountryAnalysis_glob <- function(Nboots=1000,
       icc = 0
       gmodestim0PID <- 0;
 
+      tabb_all <- tab;
+      tabb_all$estim <- tabb_all$error <- NA
+      if(!is.null(fn_filter_survey_LR))
+      {
+        tab <- subset(tabb_all,Data_type%in%fn_filter_survey_LR)
+
+        if(nrow(tab)==0) return(0)
+
+        vvprob = tab$Weights
+        err_syph = lapply(1:nrow(tab),function(ll) which(tab$DX_Code==tab$DX_Code[ll]))
+        wei_syph = lapply(1:nrow(tab),function(ll) {ww0 = tab$Weights[which(tab$DX_Code==tab$DX_Code[ll])]; if(length(ww0)>0) ww0=ww0/sum(ww0); ww0} )
+
+        err_samp = function(ll) {vv=as.vector(err_syph[[ll]]); sprob= as.vector(wei_syph[[ll]]) ; if (length(vv)==1) res= vv else res=sample(vv, prob=sprob, replace=TRUE)[1]}
+        ERR_SAMP = function(ll) as.vector(sapply(ll,err_samp))
+
+        tab$Weights = tab$Weights/sum(tab$Weights) # Normalize the weights so that the sample size is not affected
+        tab$Weights = tab$Weights*sum(tab$N_tested,na.rm=T)
+
+        amin = floor(min(tab$Year))-(FB_ProjMax_B+0.5)
+        bmax = ceiling(max(tab$Year)) + (FB_ProjMax_F+0.5)
+        bmoinsa = bmax-amin
+
+        aa <- 0.5
+        bb <- bmoinsa-0.5
+
+        Vect_Year_Pred = (Out_syphilis$year-amin);
+        Vect_Year_Pred[Vect_Year_Pred>= bb] = bb
+        Vect_Year_Pred[Vect_Year_Pred<= aa] = aa #Not needed?
+
+        scyears <- (tab$Year-amin)
+      }
+
       try(gmodestim0PID  <- BestFitPIDLLik_Random(vX=scyears, vY=tab$p, vW=tab$Weights, maxknots=Fmaxknots,max_FProj=bmoinsa,ficheck=FALSE, frecov=dur_Syph)
           ,silent=T)
 
-      idxMSM <-  which(tab$Data_type=="MSM")
-      idxFSW <-  which(tab$Data_type=="FSW")
-      if(length(unique(tab[idxMSM,]$Year))<2) idxMSM <- NULL
-      if(length(unique(tab[idxFSW,]$Year))<2) idxFSW <- NULL
+      idxMSM <-  which(tabb_all$Data_type=="MSM")
+      idxFSW <-  which(tabb_all$Data_type=="FSW")
+      if(length(unique(tabb_all[idxMSM,]$Year))<2) idxMSM <- NULL
+      if(length(unique(tabb_all[idxFSW,]$Year))<2) idxFSW <- NULL
 
       all_estMSM <- all_estFSW <- NULL
 
@@ -827,11 +860,14 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         ##
         if(length(idxMSM)>=3)
         {
-          temp_MSM <- tab[idxMSM,]
+          temp_MSM <- tabb_all[idxMSM,]
           modMSM <- glm(Prevalence/100~Year, data=temp_MSM, family = quasibinomial(link="logit"))
           all_estMSM$prev <- expit(coef(modMSM)[1]+coef(modMSM)[2]*(Vect_Year_Pred+amin))
 
           Out_syphilisKPs$PrevEstMSM <- all_estMSM$prev
+
+          tabb_all$estim[idxMSM] = coef(modMSM)[1] +coef(modMSM)[2]*tabb_all$Year[idxMSM] #pred_glmfit(Years=tab$Year,res)
+          tabb_all$error[idxMSM] = log(tabb_all$Npos[idxMSM]/(tabb_all$N_tested[idxMSM]-tabb_all$Npos[idxMSM]))-tabb_all$estim[idxMSM]#res$residuals
         } else
         {
           Out_syphilisKPs$PrevEstMSM <- expit(-log(LRtoHRPOR$MtoMSM$POR) + logit(Out_syphilis$PrevEstM))
@@ -840,11 +876,14 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         if(length(idxFSW)>=3)
         {
-          temp_FSW <- tab[idxFSW,]
+          temp_FSW <- tabb_all[idxFSW,]
           modFSW <- glm(Prevalence/100~Year, data=temp_FSW, family = quasibinomial(link="logit"))
           all_estFSW$prev <- expit(coef(modFSW)[1]+coef(modFSW)[2]*(Vect_Year_Pred+amin))
 
           Out_syphilisKPs$PrevEstFSW <- all_estFSW$prev
+
+          tabb_all$estim[idxFSW] = coef(modFSW)[1] +coef(modFSW)[2]*tabb_all$Year[idxFSW] #pred_glmfit(Years=tab$Year,res)
+          tabb_all$error[idxFSW] = log(tabb_all$Npos[idxFSW]/(tabb_all$N_tested[idxFSW]-tabb_all$Npos[idxFSW]))-tabb_all$estim[idxFSW]#res$residuals
         } else
         {
           Out_syphilisKPs$PrevEstFSW <- expit(-log(LRtoHRPOR$FtoFSW$POR) + logit(Out_syphilis$PrevEstF))
@@ -925,7 +964,16 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
           if(length(idxMSM)>=3)
           {
-            temp_MSM <- tab.boot[idxMSM,]
+            tabb_all$p[idxMSM] = tabb_all$estim[idxMSM]+tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
+            tabb_all$p[idxMSM] = exp(tabb_all$p[idxMSM])/(1+exp(tabb_all$p[idxMSM]))
+
+            tabb_all$alpha[idxMSM] = tabb_all$p[idxMSM]*(tabb_all$N_tested[idxMSM]-1)
+            tabb_all$beta[idxMSM] = (1-tabb_all$p[idxMSM])*(tabb_all$N_tested[idxMSM]-1)
+            tabb_all$Npos[idxMSM] = (qbeta(rep(u,length(tabb_all$Npos[idxMSM])),tabb_all$alpha[idxMSM],tabb_all$beta[idxMSM])*tabb_all$N_tested[idxMSM])
+
+            tabb_all$p[idxMSM] = tabb_all$Npos[idxMSM]/tabb_all$N_tested[idxMSM]*runif(length(tabb_all$Npos[idxMSM]),0.75,1.25);
+
+            temp_MSM <- tabb_all[idxMSM,] #tab.boot[idxMSM,]
             temp_MSM$Prevalence <- rbinom(length(idxMSM),round(temp_MSM$N_tested),temp_MSM$Prevalence/100)/round(temp_MSM$N_tested)
             modMSM <- glm(Prevalence~Year, data=temp_MSM, family = quasibinomial(link="logit"))
             all_estMSM$prev <- expit(coef(modMSM)[1]+coef(modMSM)[2]*(Vect_Year_Pred+amin))
@@ -938,7 +986,16 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
           if(length(idxFSW)>=3)
           {
-            temp_FSW <- tab.boot[idxFSW,]
+            tabb_all$p[idxFSW] = tabb_all$estim[idxFSW]+tabb_all$error[idxFSW][ERR_SAMP(1:length(tabb_all$error[idxFSW]))]
+            tabb_all$p[idxFSW] = exp(tabb_all$p[idxFSW])/(1+exp(tabb_all$p[idxFSW]))
+
+            tabb_all$alpha[idxFSW] = tabb_all$p[idxFSW]*(tabb_all$N_tested[idxFSW]-1)
+            tabb_all$beta[idxFSW] = (1-tabb_all$p[idxFSW])*(tabb_all$N_tested[idxFSW]-1)
+            tabb_all$Npos[idxFSW] = (qbeta(rep(u,length(tabb_all$Npos[idxFSW])),tabb_all$alpha[idxFSW],tabb_all$beta[idxFSW])*tabb_all$N_tested[idxFSW])
+
+            tabb_all$p[idxFSW] = tabb_all$Npos[idxFSW]/tabb_all$N_tested[idxFSW]*runif(length(tabb_all$Npos[idxFSW]),0.75,1.25);
+
+            temp_FSW <- tabb_all[idxFSW,] #tab.boot[idxFSW,]
             temp_FSW$Prevalence <- rbinom(length(idxFSW),round(temp_FSW$N_tested),temp_FSW$Prevalence/100)/round(temp_FSW$N_tested)
             modFSW <- glm(Prevalence~Year, data=temp_FSW, family = quasibinomial(link="logit"))
             all_estFSW$prev <- expit(coef(modFSW)[1]+coef(modFSW)[2]*(Vect_Year_Pred+amin))
@@ -994,19 +1051,19 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilis$PrevEstF_LoB <- CI_SyphilisPrevF[1,]
         Out_syphilis$PrevEstF_UpB <- CI_SyphilisPrevF[3,]
 
-        Out_syphilis$CasePrevEstF <- Out_syphilis$CasePrevEstF*popF
-        Out_syphilis$CasePrevMedF <- CI_SyphilisCasePrevF[2,]*popF
-        Out_syphilis$CasePrevF_LoB <- CI_SyphilisCasePrevF[1,]*popF
-        Out_syphilis$CasePrevF_UpB <- CI_SyphilisCasePrevF[3,]*popF
+        Out_syphilis$CasePrevEstF <- Out_syphilis$CasePrevEstF*(popF-popFSW)
+        Out_syphilis$CasePrevMedF <- CI_SyphilisCasePrevF[2,]*(popF-popFSW)
+        Out_syphilis$CasePrevF_LoB <- CI_SyphilisCasePrevF[1,]*(popF-popFSW)
+        Out_syphilis$CasePrevF_UpB <- CI_SyphilisCasePrevF[3,]*(popF-popFSW)
 
         Out_syphilis$InciEstF_Med <- CI_SyphilisInciF[2,]
         Out_syphilis$InciEstF_LoB <- CI_SyphilisInciF[1,]
         Out_syphilis$InciEstF_UpB <- CI_SyphilisInciF[3,]
 
-        Out_syphilis$CaseInciEstF <- Out_syphilis$CaseInciEstF*popF
-        Out_syphilis$CaseIncMedF <- CI_SyphilisCaseInciF[2,]*popF
-        Out_syphilis$CaseIncF_LoB <- CI_SyphilisCaseInciF[1,]*popF
-        Out_syphilis$CaseIncF_UpB <- CI_SyphilisCaseInciF[3,]*popF
+        Out_syphilis$CaseInciEstF <- Out_syphilis$CaseInciEstF*(popF)
+        Out_syphilis$CaseIncMedF <- CI_SyphilisCaseInciF[2,]*(popF)
+        Out_syphilis$CaseIncF_LoB <- CI_SyphilisCaseInciF[1,]*(popF)
+        Out_syphilis$CaseIncF_UpB <- CI_SyphilisCaseInciF[3,]*(popF)
 
         #FSW
         Out_syphilisKPs$PrevEstFSW_Med <- CI_SyphilisPrevFSW[2,]
@@ -1023,19 +1080,19 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilis$PrevEstM_LoB <- CI_SyphilisPrevM[1,]
         Out_syphilis$PrevEstM_UpB <- CI_SyphilisPrevM[3,]
 
-        Out_syphilis$CasePrevEstM <- Out_syphilis$CasePrevEstM*popM
-        Out_syphilis$CasePrevMedM <- CI_SyphilisCasePrevM[2,]*popM
-        Out_syphilis$CasePrevM_LoB <- CI_SyphilisCasePrevM[1,]*popM
-        Out_syphilis$CasePrevM_UpB <- CI_SyphilisCasePrevM[3,]*popM
+        Out_syphilis$CasePrevEstM <- Out_syphilis$CasePrevEstM*(popM-popMSM)
+        Out_syphilis$CasePrevMedM <- CI_SyphilisCasePrevM[2,]*(popM-popMSM)
+        Out_syphilis$CasePrevM_LoB <- CI_SyphilisCasePrevM[1,]*(popM-popMSM)
+        Out_syphilis$CasePrevM_UpB <- CI_SyphilisCasePrevM[3,]*(popM-popMSM)
 
         Out_syphilis$InciEstM_Med <- CI_SyphilisInciM[2,]
         Out_syphilis$InciEstM_LoB <- CI_SyphilisInciM[1,]
         Out_syphilis$InciEstM_UpB <- CI_SyphilisInciM[3,]
 
-        Out_syphilis$CaseInciEstM <- Out_syphilis$CaseInciEstM*popM
-        Out_syphilis$CaseIncMedM <- CI_SyphilisCaseInciM[2,]*popM
-        Out_syphilis$CaseIncM_LoB <- CI_SyphilisCaseInciM[1,]*popM
-        Out_syphilis$CaseIncM_UpB <- CI_SyphilisCaseInciM[3,]*popM
+        Out_syphilis$CaseInciEstM <- Out_syphilis$CaseInciEstM*(popM)
+        Out_syphilis$CaseIncMedM <- CI_SyphilisCaseInciM[2,]*(popM)
+        Out_syphilis$CaseIncM_LoB <- CI_SyphilisCaseInciM[1,]*(popM)
+        Out_syphilis$CaseIncM_UpB <- CI_SyphilisCaseInciM[3,]*(popM)
 
         #MSM
         Out_syphilisKPs$PrevEstMSM_Med <- CI_SyphilisPrevMSM[2,]
@@ -1048,7 +1105,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilisKPs$CasePrevMSM_UpB <- CI_SyphilisCasePrevMSM[3,]*popMSM
         ##############################################################################
         #BothSexes
-        Out_syphilis$CasePrevEstMPlusF <- Out_syphilis$CasePrevEstF+Out_syphilis$CasePrevEstM
+        Out_syphilis$CasePrevEstMPlusF <- Out_syphilis$CasePrevEstF+Out_syphilisKPs$CasePrevEstFSW+Out_syphilis$CasePrevEstM+Out_syphilisKPs$CasePrevEstMSM
         Out_syphilis$PrevEstMPlusF <- Out_syphilis$CasePrevEstMPlusF/(popM+popF)
 
         Out_syphilis$CaseInciEstMPlusF <- Out_syphilis$CaseInciEstF+Out_syphilis$CaseInciEstM
@@ -1056,7 +1113,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         resboot_SyphilisCasePrevMPlusF <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
         {
-          as.numeric(resboot_SyphilisPrevM[ii,])*popM+as.numeric(resboot_SyphilisPrevF[ii,]*popF)
+          as.numeric(resboot_SyphilisPrevM[ii,])*(popM-popMSM)+as.numeric(resboot_SyphilisPrevMSM[ii,])*popMSM+
+            as.numeric(resboot_SyphilisPrevF[ii,])*(popF-popFSW)+as.numeric(resboot_SyphilisPrevFSW[ii,])*popFSW
         }))
 
         resboot_SyphilisPrevMPlusF <- t(sapply(1:nrow(resboot_SyphilisCasePrevMPlusF), function(ii)
@@ -1142,11 +1200,6 @@ fCountryAnalysis_glob <- function(Nboots=1000,
     temp_data <- cbind(ctr_res$Out_syphilis, infoRun, ctr_res$Out_syphilisKPs[-c(1:4)])
     openxlsx::writeData(wb, sheet=Syphilis_Rbootstrap, temp_data,colNames = FALSE,rowNames = FALSE,
                         startRow = 1+nligne_decal_titre+nrownum, startCol = 1) #ctr_res$Out_syphilis
-
-    #skipcol = ncol(temp_data)+1#skipcol = ncol(ctr_res$Out_syphilis)+1
-    #openxlsx::writeData(wb, sheet=Syphilis_Rbootstrap, ctr_res$infoRun,colNames = FALSE,rowNames = FALSE,
-    #                    startRow = 1+nligne_decal_titre+nrownum, startCol = skipcol)
-
     nrownum = nrownum+nsep+nrow(ctr_res$Out_syphilis)
     All_CountryDataUse = rbind(All_CountryDataUse,ctr_res$CountryDataUse)
   }
@@ -1170,620 +1223,6 @@ fCountryAnalysis_glob <- function(Nboots=1000,
   all_res <- list(filename=name.out.file, SyphData=SyphData, wb=wb)
   invisible(all_res)
 }
-
-fCountryAnalysis_globN = function(Nboots=1000, fname.data.file = name.data.file, Fmaxknots, FB_ProjMax_F, FB_ProjMax_B,
-                                  duration.syphilis, data.syphilis, PopSizeBoth, PopSizeMen, PopSizeWomen,
-                                  PopSizeMSM,PopSizeFSW,
-                                  ISO3, year_predict, zerprev_adj=1/100, fname.data.file_OldRes=NULL,MtoFRatio=1, fautosavefile=TRUE, high_risk_adj = 1.1)
-{
-  #
-  if(is.null(fname.data.file_OldRes))
-  {
-    result <- fCountryAnalysis_glob(Nboots, fname.data.file = name.data.file, Fmaxknots,FB_ProjMax_F, Fmaxknots,FB_ProjMax_B, duration.syphilis,
-                          data.syphilis, PopSizeBoth, PopSizeMen, PopSizeWomen, PopSizeMSM,PopSizeFSW, ISO3, year_predict, zerprev_adj,MtoFRatio, autosavefile=fautosavefile)
-  } else
-  {
-    #name.out.file = paste(substr(fname.data.file,1,nchar(fname.data.file)-5),gsub("-", "", Sys.Date()),"_zAdj_", zerprev_adj,"_out.xlsx",sep="")
-    #name.out.file = substr(name.out.file,4,nchar(name.out.file))
-
-    name.out.file = fname.data.file
-    if(grepl("/",name.out.file))
-    {
-      nn <- max(unlist(gregexpr('/', name.out.file)))
-      name.out.file <- substr(name.out.file,nn+1, nchar(name.out.file))
-    }
-    name.out.file = paste(substr(name.out.file,1,nchar(name.out.file)-5),gsub("-", "", Sys.Date()),"_zAdj_", zerprev_adj,"_out.xlsx",sep="")
-    if(nchar(name.out.file)>218)
-    {
-      name.out.file <- substr(name.out.file,nchar(name.out.file)-217,nchar(name.out.file))
-    }
-
-    #List of countries
-    lcountry = levels(data.syphilis$Country)
-    res.syphilis = data.frame()
-
-    #Loading the excel file where the results will be stored
-    wb = loadWorkbook(fname.data.file)
-    nnamessheetwb =  names(getSheets(wb))
-    if(!is.element("SYPH_RBootstrap_All",nnamessheetwb))
-    {
-      Syphilis_Rboostrap = createSheet(wb,"SYPH_RBootstrap_All") # I am going to write out Syphilis results for all the countries here
-    } else
-    {
-      sheets = getSheets(wb)
-      iii =  which(names(sheets)=="SYPH_RBootstrap_All")
-      Syphilis_Rboostrap = sheets[[iii]]
-    }
-
-    if(!is.element("SYPH_YearCheck_Glob",nnamessheetwb))
-    {
-      Syphilis_YearCheck_Glob = createSheet(wb,"SYPH_YearCheck_Glob") # I am going to write out Syphilis results for groups of countries here
-    } else
-    {
-      sheets = getSheets(wb)
-      iii =  which(names(sheets)=="SYPH_YearCheck_Glob")
-      Syphilis_YearCheck_Glob = sheets[[iii]]
-    }
-
-    if(!is.element("SYPH_AdjTestValCheck_Glob",nnamessheetwb))
-    {
-      Syphilis_AdjTestCheck_Glob = createSheet(wb,"SYPH_AdjTestValCheck_Glob") # I am going to write out Syphilis results for groups of countries here
-    } else
-    {
-      sheets = getSheets(wb)
-      iii =  which(names(sheets)=="SYPH_AdjTestValCheck_Glob")
-      Syphilis_AdjTestCheck_Glob = sheets[[iii]]
-    }
-
-    # Workbook Styles
-    cscountry <- CellStyle(wb) + Font(wb, isBold=TRUE) + Border() #
-    cstitle <- CellStyle(wb) + Font(wb, isItalic=TRUE)+ Border()
-
-    csyear <- CellStyle(wb) + Font(wb)
-    csest <- CellStyle(wb) + Font(wb, color="blue")
-    csbounds <- CellStyle(wb) + Font(wb, color="green")
-
-    csest2 <- CellStyle(wb) + Font(wb, color="orange")
-    csbounds2 <- CellStyle(wb) + Font(wb, color="purple")
-
-    csall = list('1'=csyear,'2'=csest, '3'=csest, '4'=csbounds, '5'=csbounds)
-    csall2 = list('1'=csyear,'2'=csest2, '3'=csest2, '4'=csbounds2, '5'=csbounds2)
-
-    csall_nn2 = list('1'=csest, '2'=csest, '3'=csbounds, '4'=csbounds)
-
-    csall5_inci = list('1'=csest2,'2'=csbounds2, '3'=csbounds2) # Estimates from regional data
-    csall5_prev = list('1'=csest,'2'=csbounds, '3'=csbounds) # Estimates from regional data
-
-    ttt = c("Year", "Country","ISO3","WHO_Region","Estimate", "Median", "LB 2.5%", "UB 97.5%")
-
-    tttEl = c("CasePrev_Est", "CasePrev_Med", "CasePrev_LB 2.5%", "CasePrev_UB 97.5%", "NationalPop15-49yM+F", "Country_Curve_Fit","Date_Last_Run")
-
-    tttInc = ttt
-
-    syph_nn1 = c("year","Country","ISO3","WHO_Region","Est1","Est1_Med", "Est1_LoB", "Est1_UpB")
-    syph_nn0 = c("Est0","Est0_Med", "Est0_LoB", "Est0_UpB","Pop15to49")
-    syph_nn2 =c("Country","ISO3","Est2","Est2_Med","Est2_LoB","Est2_UpB")
-    syph_nninc = c("year", "Country","ISO3","Incidence","Inc_Med", "Inc_LoB", "Inc_UpB")
-
-    syph_nn5 =c("Est5","Est5_LoB","Est5_UpB")
-    syph_nn5inc = c("Incidence_byRegion","Inc5_LoB", "Inc5_UpB")
-
-    nsep = 0
-    nligne_decal_titre = 0
-    nrownum=0
-
-    est_all = list()
-    results_all = list()
-    countries_in = list()
-
-    PopSize_all = list()
-    PopSize_all2 =  list()
-
-    ii = 0
-    nncc = 0
-    nncc2 = 0
-
-    gfy0 =min(year_predict)
-    gly0=max(year_predict)+1
-    gslen0=30
-
-    data.syphilis$popss = NA
-    WorldData = data.syphilis[-(1:nrow(data.syphilis)),]
-
-    ewho_regions = levels(data.syphilis$WHO_region)
-    WHO_regions_Data =  lapply(1:length(ewho_regions), function(whor) WorldData)
-    names(WHO_regions_Data) = ewho_regions
-
-    PopSize_all_WHO_regions = lapply(1:length(ewho_regions), function(whor) list())
-    PopSize_all2_WHO_regions = lapply(1:length(ewho_regions), function(whor) list())
-
-    names(PopSize_all_WHO_regions) = ewho_regions
-    names(PopSize_all2_WHO_regions) = ewho_regions
-
-    est_all_WHO_regions = lapply(1:length(ewho_regions), function(whor) list())
-    results_all_WHO_regions = lapply(1:length(ewho_regions), function(whor) list())
-    names(est_all_WHO_regions) = ewho_regions
-    names(results_all_WHO_regions) = ewho_regions
-
-    nncc_WHO_region = rep(0,length(ewho_regions))
-    nncc2_WHO_region = rep(0,length(ewho_regions))
-
-    DurSyph_all_WHO_regions = rep(0,length(ewho_regions)) #For weighthed syphilis durations
-    names(DurSyph_all_WHO_regions) = ewho_regions
-
-    SampSize_all_WHO_regions = rep(0,length(ewho_regions)) #For weighthed syphilis durations
-    names(SampSize_all_WHO_regions) = ewho_regions
-
-    All_CountryDataUse=data.frame(CountryName=factor(levels(lcountry)),Year=numeric(),WithinRange=factor(levels=c("Yes","No")),Flatlined=factor(levels=c("Yes","No")))
-
-    #############################
-    OldRes_SyphData = read.xlsx(fname.data.file_OldRes,sheetName="SyphData",startRow=1,#endRow=1622,
-                                colIndex=1:length(namesCol), check.names=FALSE)
-
-    OldRes_DiagnosticTest = read.xlsx(fname.data.file_OldRes,sheetName="DiagnosticTests",startRow=1,endRow=25, colIndex=1:14,header=TRUE)
-
-    colnames(OldRes_DiagnosticTest)=c("STI","STI_code",	"Specimen",	"Specimen_code",	"Sex",	"Diagnostic test",	"DX_code",	"Sensitivity",
-                                      "Source_for_sensitivity",	"Specificity",	"Source_for_specificity",	"Adjustment_factor",
-                                      "Source_for_adjustment_factor")
-
-    OldRes_DiagnosticTest = OldRes_DiagnosticTest[16:21,]
-
-    #high_risk_adj = 1.1
-
-    OldRes_SyphData$Prevalence = sapply(1:length(OldRes_SyphData$Prevalence),function(ii){
-      res = NA
-      if(!is.na(OldRes_SyphData$DX_Code[ii]))
-      {
-        adj = OldRes_DiagnosticTest$Adjustment_factor[which(OldRes_DiagnosticTest$DX_code==OldRes_SyphData$DX_Code[ii])];
-        res = OldRes_SyphData$Prevalence[ii]*adj*high_risk_adj
-      }
-      res
-    } )
-
-    OldRes_SyphData$DiagTestAdjusteFactor = sapply(1:length(OldRes_SyphData$Prevalence),function(ii){
-      res = NA
-      if(!is.na(OldRes_SyphData$DX_Code[ii]))
-      {
-        res = OldRes_DiagnosticTest$Adjustment_factor[which(OldRes_DiagnosticTest$DX_code==OldRes_SyphData$DX_Code[ii])];
-      }
-      res
-    } )
-
-    OldRes_ISO3 = read.xlsx(fname.data.file_OldRes,sheetName="ISO3",startRow=1, colIndex=1:3,header=FALSE)
-    colnames(ISO3)=c("Counrty","Numeric_ISO3","Alpha_ISO3")
-
-    namesCol = c(namesCol,"DiagTestAdjusteFactor")
-    OldRes_SyphData = OldRes_SyphData[,is.element(names(OldRes_SyphData),TFnamesCol)]
-    genv = environment()
-    ll = sapply(1:ncol(OldRes_SyphData), function(jj) if(is.element(names(OldRes_SyphData)[jj],TFnamesCol))
-    {
-      iiind = which(TFnamesCol==names(OldRes_SyphData)[jj])
-      names(genv$OldRes_SyphData)[jj]= namesCol[iiind]
-      jj
-    })
-
-    OldRes_SyphData$WghtNSpectrum = OldRes_SyphData$Weight_for_Spectrum_fitting
-    OldRes_data.syphilis = OldRes_SyphData
-
-    OldRes_SyphRbootstrap = read.xlsx(fname.data.file_OldRes,sheetName="SYPH_RBootstrap_All")
-    #End Old results for all countries
-    ######################################################################################
-    ee0 = environment()
-
-    zz = sapply(lcountry, function(lc)
-    {
-      ee0$ii = ee0$ii+1
-
-      OldRes_cdata.syph = OldRes_data.syphilis[OldRes_data.syphilis$Country==lc & !is.na(OldRes_data.syphilis$Country) & !is.na(OldRes_data.syphilis$Prevalence),]
-      nww = OldRes_cdata.syph$WghtNSpectrum
-
-      if(length(nww)>1)
-      {
-        OldRes_cdata.syph = OldRes_cdata.syph[!is.na(nww),]
-        OldRes_cdata.syph$Weights = nww[!is.na(nww)]
-
-        OldRes_cdata.syph = OldRes_cdata.syph[!is.na(OldRes_cdata.syph$Year),]
-        OldRes_cdata.syph = OldRes_cdata.syph[OldRes_cdata.syph$Weights>0,]
-
-        OldRes_cdata.syph$Prevalence[OldRes_cdata.syph$Prevalence==0]=1/OldRes_cdata.syph$N_tested[OldRes_cdata.syph$Prevalence==0]
-        OldRes_cdata.syph$Prevalence[OldRes_cdata.syph$Prevalence==0] = OldRes_cdata.syph$Prevalence[OldRes_cdata.syph$Prevalence==0]*zerprev_adj
-      }
-
-      ###***###
-      check_maxyear = FALSE
-      if(nrow(OldRes_cdata.syph)>=3)
-      {
-        myy = max(OldRes_cdata.syph$Year,na.rm=T)
-        if(length(myy)==1)
-        {
-          if(myy>=2011)
-          {
-            ww = OldRes_cdata.syph$Weights[which(OldRes_cdata.syph$Year==myy)]
-            if(length(ww[ww>0])>=1) check_maxyear=TRUE # At least one survey conducted after 2011 with a weight >0
-          }
-        }
-      }
-
-      CountryModel = "PID+Spline"
-      ctr_ix <- which(data.syphilis$Country == lc & !is.na(data.syphilis$Country) & !is.na(data.syphilis$Prevalence))
-      cdata.syph = data.syphilis[ctr_ix, ]
-      #print(lc)
-      nww = cdata.syph$WghtNSpectrum
-
-      cdata.syph = cdata.syph[!is.na(nww),]
-      cdata.syph$Weights = nww[!is.na(nww)]
-
-      cdata.syph = cdata.syph[!is.na(cdata.syph$Year),]
-      cdata.syph = cdata.syph[cdata.syph$Weights>0,]
-
-      cdata.syph$Prevalence[cdata.syph$Prevalence==0]=1/cdata.syph$N_tested[cdata.syph$Prevalence==0]
-      cdata.syph$Prevalence[cdata.syph$Prevalence==0] = cdata.syph$Prevalence[cdata.syph$Prevalence==0]*zerprev_adj
-
-      ###***###
-      check_maxyear = FALSE
-      if(nrow(cdata.syph)>=3)
-      {
-        myy = max(cdata.syph$Year,na.rm=T)
-        if(length(myy)==1)
-        {
-          if(myy>=2011)
-          {
-            ww = cdata.syph$Weights[which(cdata.syph$Year==myy)]
-            if(length(ww[ww>0])>=1) check_maxyear=TRUE #
-          }
-        }
-      }
-
-      if(check_maxyear)
-      {
-        ee0$nncc2 = ee0$nncc2+1
-
-        numeric_iso3 =  as.character(cdata.syph$ISO3[1])
-        alpha_iso3 =  ISO3$Alpha_ISO3[ISO3$Numeric_ISO3==numeric_iso3 & !is.na(ISO3$Numeric_ISO3)]
-        alpha_iso3 <- alpha_iso3[!is.na(alpha_iso3)][1]
-        vv = as.character(alpha_iso3)
-
-        cdata.syph$popss = sapply(round(cdata.syph$Year), function(xx){
-          res=NA
-          vxx = PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1]
-          res0 = unlist(vxx[PopSize[1,-1]==xx])
-          if(length(res0)) res = res0
-          res
-        })
-
-        cdata.syph = cdata.syph[cdata.syph$Year>=gfy0,]
-
-        ee0$WorldData = rbind(ee0$WorldData,cdata.syph)
-        ee0$PopSize_all2[[nncc2]] = PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1]
-
-        rr_whoreg = cdata.syph$WHO_region[1]
-        amy = which(names(PopSize_all2_WHO_regions)==rr_whoreg)
-
-        ee0$nncc2_WHO_region[amy]=ee0$nncc2_WHO_region[amy]+1
-        ee0$PopSize_all2_WHO_regions[[amy]][[nncc2_WHO_region[amy]]] = PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1]
-
-        ee0$WHO_regions_Data[[amy]] = rbind(ee0$WHO_regions_Data[[amy]],cdata.syph)
-
-        treat.zone = cdata.syph$WHO_region[1]
-        if(treat.zone=="EURO" | treat.zone=="AMRO") treat.zone =  "A" else if (treat.zone=="AFRO") treat.zone = "C" else treat.zone = "B"
-        dur_Syph = duration.syphilis$duration[which(duration.syphilis$t.zone==treat.zone)]
-        tbadd = dur_Syph*as.numeric(as.character(PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1][1]))
-        nntest = ifelse(is.vector(tbadd),length(tbadd),nrow(tbadd))
-        if(nntest==1)
-        {
-          if(!is.na(tbadd))
-          {
-            ee0$DurSyph_all_WHO_regions[amy] = ee0$DurSyph_all_WHO_regions[amy]+tbadd
-            ee0$SampSize_all_WHO_regions[amy] = ee0$SampSize_all_WHO_regions[amy]+PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1][1];
-          }
-        }
-      }
-
-      ShouldRun=FALSE
-      if(nrow(cdata.syph)==nrow(OldRes_cdata.syph))
-      {
-        namestoCompare =  namesCol = c("Country","ISO3","ISO3_letters","WHO_region","Data_type","Data_type_code","Sex","Year"
-                                       ,"Diagnostic_test","DX_Code","N_positive","N_tested","Prevalence",
-                                       "Weight_for_Spectrum_fitting", "WghtNSpectrum","Pop2012_15to49","PoptimesWeights",
-                                       "N_eligible_for_testing", "Denominator_survey_GARPR", "Diagnostic_Desciption" )
-
-        tcpare1 = OldRes_cdata.syph[,is.element(names(OldRes_cdata.syph),namestoCompare)]
-        tcpare2 = cdata.syph[,is.element(names(cdata.syph),namestoCompare)]
-        sumdiff = 0
-        for(ii in 1:ncol(tcpare1))
-        {
-          if(is.factor(tcpare1[,ii]) & (is.factor(tcpare2[,ii])))
-          {
-            vv1 = droplevels(tcpare1[,ii])
-            vv2 = droplevels(tcpare2[,ii])
-            if(sum(!is.element(levels(vv1),levels(vv2)))+sum(!is.element(levels(vv2),levels(vv1)))>=1)
-            {
-              sumdiff=sumdiff+length(vv1)
-            } else
-            {
-              vv = (vv1==vv1) | (is.na(vv1) & (is.na(vv2)))
-              vv[is.na(vv)] = FALSE
-              sumdiff=sumdiff+sum(!vv)
-            }
-          } else
-          {
-            vv1 = tcpare1[,ii]
-            vv2 = tcpare2[,ii]
-            vv = (vv1==vv1) | (is.na(vv1) & (is.na(vv2)))
-            vv[is.na(vv)] = FALSE
-            sumdiff=sumdiff+sum(!vv)
-          }
-        }
-        if(sumdiff!=0 | sum(OldRes_SyphRbootstrap$Country==lc, na.rm=T)==0 ) ShouldRun=TRUE;
-      } else # the two data sets don't even have the same length; so we are going to re-run the analysis
-      {
-        ShouldRun=TRUE
-      }
-
-      ShouldRun=TRUE #I am re-running for all the countries
-      if(ShouldRun)
-      {
-        if(!check_maxyear)
-        {
-          return(ee0$ii)
-        } else
-        {
-          ee0$nncc = ee0$nncc+1
-          numeric_iso3 =  cdata.syph$ISO3[1];
-          alpha_iso3 =  ISO3$Alpha_ISO3[ISO3$Numeric_ISO3==as.character(numeric_iso3) & !is.na(ISO3$Numeric_ISO3)]
-          alpha_iso3 <- alpha_iso3[!is.na(alpha_iso3)][1]
-          ee0$countries_in[[nncc]] = alpha_iso3 #c(ee0$countries_in,alpha_iso3)
-
-          resboot_Syphilis = data.frame(matrix(NA,ncol=length(year_predict),nrow=Nboots))
-          names(resboot_Syphilis)=paste("year",year_predict,sep="_")
-          resboot_Syphilis0 = resboot_Syphilis
-          resboot_Syphilis2 = resboot_Syphilis
-
-          Out_syphilis = data.frame(year=year_predict)
-          Out_syphilis$Country = lc;
-          Out_syphilis$ISO3 = alpha_iso3
-
-          Out_syphilis$WHO_Region = cdata.syph$WHO_region[1]
-
-          ee0$nncc_WHO_region[amy]=ee0$nncc_WHO_region[amy]+1
-          #Incidence
-          incboot_Syphilis = resboot_Syphilis
-
-          #Syphilis Analysis
-          tab = cdata.syph
-          tab$Npos = tab$N_tested*tab$Prevalence/100
-
-          treat.zone = tab$WHO_region[1]
-          if(treat.zone=="EURO" | treat.zone=="AMRO") treat.zone =  "A" else if (treat.zone=="AFRO") treat.zone = "C" else treat.zone = "B"
-          dur_Syph = duration.syphilis$duration[which(duration.syphilis$t.zone==treat.zone)]
-
-          ee=environment()
-          tabtab=tab; ee$tab = tab
-          lll =  sapply(1:length(tab$Weights), function(iii) {
-            if(!is.na(tabtab$Weights[iii]))
-              if(tabtab$Weights[iii]==0){
-                ee$tab$Weights[iii]=mean(tabtab$Weights[tabtab$Weights!=0 & tabtab$Survey== tabtab$Survey[iii]],na.rm=T)
-              }
-          })
-
-          rm(tabtab); rm(lll)
-
-          tab = ee$tab
-          tab=tab[!is.na(tab$Weights) & !is.na(tab$N_tested),]
-
-          CountryDataUse=data.frame(CountryName=rep(lc,length(year_predict)),Year=year_predict,WithinRange=rep("No",length(year_predict)),
-                                    Flatlined=rep("No",length(year_predict)))
-          levels(CountryDataUse$WithinRange)=c("No","Yes")
-          levels(CountryDataUse$Flatlined)=c("No","Yes")
-          CountryDataUse$WithinRange[CountryDataUse$Year>=min(tab$Year) & CountryDataUse$Year<=max(tab$Year)] ="Yes"
-          CountryDataUse$Flatlined[CountryDataUse$Year<=(min(tab$Year)-FB_ProjMax_B) | CountryDataUse$Year>=(max(tab$Year)+FB_ProjMax_F)] ="Yes"
-
-          ee0$All_CountryDataUse = rbind(ee0$All_CountryDataUse,CountryDataUse)
-
-          vvprob = tab$Weights
-          err_syph = lapply(1:nrow(tab),function(ll) which(tab$DX_Code==tab$DX_Code[ll]))
-          wei_syph = lapply(1:nrow(tab),function(ll) {ww0 = tab$Weights[which(tab$DX_Code==tab$DX_Code[ll])]; if(length(ww0)>0) ww0=ww0/sum(ww0); ww0} )
-
-          err_samp = function(ll) {vv=as.vector(err_syph[[ll]]); sprob= as.vector(wei_syph[[ll]]) ; if (length(vv)==1) res= vv else res=sample(vv, prob=sprob, replace=TRUE)[1]}
-          ERR_SAMP = function(ll) as.vector(sapply(ll,err_samp))
-
-          tab$Weights = tab$Weights/sum(tab$Weights) # Normalize the weights so that the sample size is not affected
-          tab$Weights = tab$Weights*sum(tab$N_tested,na.rm=T)
-
-          tab$variance = tab$Npos/tab$N_tested*(1-tab$Npos/tab$N_tested)/tab$N_tested
-          tab$p = tab$Npos/tab$N_tested
-          tab$alpha = tab$p*(tab$p*(1-tab$p)/tab$variance-1)
-          tab$beta = (1-tab$p)*(tab$p*(1-tab$p)/tab$variance-1)
-
-          amin = floor(min(tab$Year))-(FB_ProjMax_B+0.5)
-          bmax = ceiling(max(tab$Year)) + (FB_ProjMax_F+0.5)
-          bmoinsa = bmax-amin
-
-          aa <- 0.5
-          bb <- bmoinsa-0.5
-
-          Vect_Year_Pred = (Out_syphilis$year-amin);
-          Vect_Year_Pred[Vect_Year_Pred>= bb] = bb
-          Vect_Year_Pred[Vect_Year_Pred<= aa] = aa #Not needed?
-
-          scyears <- (tab$Year-amin)
-          typemodel=TRUE #Eline wants the same model
-          icc = 0
-          gmodestim0PID <- 0
-          try(gmodestim0PID  <- BestFitPIDLLik_Random(vX=scyears,vY=tab$p,vW=tab$Weights, maxknots=Fmaxknots,max_FProj=bmoinsa,ficheck=FALSE, frecov=dur_Syph)
-              ,silent=T)
-
-          if(is.list(gmodestim0PID))
-          {
-            tab$estim = gmodestim0PID$funcestprojprev(scyears) #pred_glmfit(Years=tab$Year,res)
-            tab$estim = log(tab$estim/(1-tab$estim))
-            tab$error = log(tab$Npos/(tab$N_tested-tab$Npos))-tab$estim#res$residuals
-
-            Out_syphilis$Est1 = gmodestim0PID$funcestprojprev(Vect_Year_Pred) #pred_glmfit(Years=Out_syphilis$year,res) #
-            Out_syphilis$Est0 = Out_syphilis$Est1
-          } else
-          {
-            icc=icc+1;
-            if(icc>=10)
-            {
-              Out_syphilis$Est1[] = NA #
-              Out_syphilis$Est0[] = NA
-            }
-          }
-
-          #Bootstrap
-          count=0
-          while(1)
-          {
-            print(count)
-            count=count+1
-            u = runif(1)
-
-            tab$p = tab$estim+tab$error[ERR_SAMP(1:length(tab$error))]
-            tab$p = exp(tab$p)/(1+exp(tab$p))
-
-            tab$alpha = tab$p*(tab$N_tested-1)
-            tab$beta = (1-tab$p)*(tab$N_tested-1)
-
-            tab$Npos = (qbeta(rep(u,length(tab$Npos)),tab$alpha,tab$beta)*tab$N_tested)
-            tab$p = tab$Npos/tab$N_tested*runif(length(tab$Npos),0.75,1.25);
-            tab.boot=tab
-
-            dur_Syph_Boot = dur_Syph*runif(1,.5,1.5)
-
-            gmodestim0PID$recov = dur_Syph_Boot
-            icc = 0
-            gmodestim0PID_Boot=0
-            while(TRUE)
-            {
-              scyears_boot <- (tab.boot$Year-amin)
-              try(gmodestim0PID_Boot <- BestFit2PIDLLik_Random(vX=scyears_boot,vY=tab.boot$p,vW=tab.boot$Weights, gmodestim0PID))
-              if(is.list(gmodestim0PID_Boot))
-              {
-                resboot_Syphilis[count,] = gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res)
-                break;
-              } else
-              {
-                icc=icc+1
-              }
-              if(icc>=10)
-              {
-                resboot_Syphilis[count,]=NA;
-                break;
-              }
-            }
-
-            resboot_Syphilis0[count,] = resboot_Syphilis[count,]
-
-            if(count>=Nboots) break
-          }
-
-          ee0$results_all[[nncc]] = resboot_Syphilis
-          ee0$est_all[[nncc]] = Out_syphilis
-
-          vv = as.character(countries_in[[ee0$nncc]])
-
-          CI_Syphilis = apply(resboot_Syphilis,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
-          CI_Syphilis0 = apply(resboot_Syphilis0,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
-
-          Out_syphilis$Est1_Med = CI_Syphilis[2,]
-          Out_syphilis$Est1_LoB = CI_Syphilis[1,]
-          Out_syphilis$Est1_UpB = CI_Syphilis[3,]
-
-          Out_syphilis$Est0 = Out_syphilis$Est0*unlist(PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1])
-          Out_syphilis$Est0_Med = CI_Syphilis0[2,]*unlist(PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1])
-          Out_syphilis$Est0_LoB = CI_Syphilis0[1,]*unlist(PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1])
-          Out_syphilis$Est0_UpB = CI_Syphilis0[3,]*unlist(PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1])
-
-          Out_syphilis$Pop15to49 = unlist(PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1])
-          Out_syphilis$Model = CountryModel
-
-          if(ee0$nrownum<=length(year_predict))
-          {
-            print(ee0$nrownum<=length(year_predict))
-
-            row2 = createRow(Syphilis_Rboostrap, rowIndex= 1+nligne_decal_titre+ee0$nrownum)
-            cell2 = createCell(row2,colIndex=1:32)
-
-            ee0$nligne_decal_titre=1
-            zzz = sapply(1:length(ttt),function(iii) {
-              setCellValue(cell2[[1,iii]],ee0$ttt[iii])
-              setCellStyle(cell2[[1,iii]],cstitle)
-
-              if(iii<=length(tttEl)){
-                setCellValue(cell2[[1,iii+length(ee0$ttt)]],ee0$tttEl[iii])
-                setCellStyle(cell2[[1,iii+length(ee0$ttt)]],ee0$cstitle)
-              }
-
-              setCellValue(cell2[[1,iii+2*length(ee0$ttt)+2*4]],ee0$tttInc[iii])
-              setCellStyle(cell2[[1,iii+2*length(ee0$ttt)+2*4]],ee0$cstitle)
-              iii
-            })
-          }
-
-          addDataFrame(Out_syphilis[,is.element(names(Out_syphilis),ee0$syph_nn1)], Syphilis_Rboostrap,col.names=FALSE,row.names=FALSE,
-                       startRow=1+nligne_decal_titre+ee0$nrownum,startColumn=1, colStyle=ee$csall)
-
-          skipcol = ncol(Out_syphilis[,is.element(names(Out_syphilis),ee0$syph_nn1)])+1
-
-          addDataFrame(Out_syphilis[,is.element(names(Out_syphilis),ee0$syph_nn0)], Syphilis_Rboostrap,col.names=FALSE,row.names=FALSE,
-                       startRow=1+nligne_decal_titre+ee0$nrownum,startColumn=skipcol, colStyle=ee$csall)
-
-          infoRun = data.frame(fitted=rep("Run", nrow(Out_syphilis)), DLastRun =rep(Sys.time(),nrow(Out_syphilis)))
-          addDataFrame(infoRun, Syphilis_Rboostrap,col.names=FALSE,row.names=FALSE,
-                       startRow=1+nligne_decal_titre+ee0$nrownum,startColumn=14, colStyle=ee$csall)
-          ee0$nrownum =  ee0$nrownum+ee0$nsep+nrow(Out_syphilis)
-        }
-      } else
-      {
-        if(sum(OldRes_SyphRbootstrap$Country==lc,na.rm=T)>1)
-        {
-          if(ee0$nrownum<=length(year_predict))
-          {
-            print(ee0$nrownum<=length(year_predict))
-
-            row2 = createRow(Syphilis_Rboostrap, rowIndex= 1+nligne_decal_titre+ee0$nrownum)
-            cell2 = createCell(row2,colIndex=1:32)
-
-            ee0$nligne_decal_titre=1
-
-            zzz = sapply(1:length(ttt),function(iii) {
-              setCellValue(cell2[[1,iii]],ee0$ttt[iii])
-              setCellStyle(cell2[[1,iii]],cstitle)
-
-              if(iii<=length(tttEl)){
-                setCellValue(cell2[[1,iii+length(ee0$ttt)]],ee0$tttEl[iii])
-                setCellStyle(cell2[[1,iii+length(ee0$ttt)]],ee0$cstitle)
-              }
-
-              setCellValue(cell2[[1,iii+2*length(ee0$ttt)+2*4]],ee0$tttInc[iii])
-              setCellStyle(cell2[[1,iii+2*length(ee0$ttt)+2*4]],ee0$cstitle)
-              iii
-            })
-          }
-
-          OldRes_Out_syphilis = OldRes_SyphRbootstrap[OldRes_SyphRbootstrap$Country==lc,]
-          OldRes_Out_syphilis[,14] = "Not Run"
-          OldRes_Out_syphilis[,15] = file.info(fname.data.file_OldRes)$mtime#Sys.time();
-
-          addDataFrame(OldRes_Out_syphilis, Syphilis_Rboostrap,col.names=FALSE,row.names=FALSE,
-                       startRow=1+nligne_decal_titre+ee0$nrownum,startColumn=1, colStyle=ee0$csall)
-          ee0$nrownum =  ee0$nrownum+ee0$nsep+nrow(OldRes_Out_syphilis)
-        }
-      }
-
-      ee0$ii
-      okk <- gc(verbose=FALSE)
-    })
-
-    addDataFrame(ee0$All_CountryDataUse, Syphilis_YearCheck_Glob,col.names=TRUE,row.names=FALSE,startRow=1,startColumn=1, colStyle=ee0$csall)
-    addDataFrame(SyphData[,is.element(names(SyphData),c("Country","ISO3","DiagTestAdjusteFactor"))], Syphilis_AdjTestCheck_Glob,col.names=TRUE,row.names=FALSE,startRow=1,startColumn=1, colStyle=ee0$csall)
-
-    if(fautosavefile) openxlsx::saveWorkbook(wb,name.out.file, overwrite = T)
-    result <- list(filename=name.out.file, SyphData=SyphData, wb=wb)
-  }
-  invisible(result)
-}#End fCountryAnalysis_globN
 
 default_syph_durations <- list(Sypdur_A = 1.28, Sypdur_B = 2.42, Sypdur_C = 4.13)
 charnumtransform <- function(x) as.numeric(gsub(",", "", as.character(x)))
@@ -1904,7 +1343,8 @@ RunFitSyphilis0 <- function(name.data.file,
 
   duration.syphilis=data.frame(t.zone=c("A","B","C"),duration=c(Sypdur_A,Sypdur_B,Sypdur_C))
   if(!is.null(list_countries)) data.syphilis <- subset(data.syphilis, ISO3%in%list_countries)
-  if(!is.null(filter_survey)) data.syphilis <- subset(data.syphilis, Data_type%in%filter_survey)
+
+  #if(!is.null(filter_survey)) data.syphilis <- subset(data.syphilis, Data_type%in%filter_survey)
 
   if(nrow(data.syphilis)==0)
   {
@@ -1953,7 +1393,8 @@ RunFitSyphilis0 <- function(name.data.file,
                                  PopSizeMen=fn_PopSizeMen, PopSizeWomen=fn_PopSizeWomen, ISO3,
                                  year_predict=in_year_predict, zerprev_adj=zero_prev_adj, MtoFRatio,
                                  LRtoHRPOR = f_LRtoHRPOR,
-                                 fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile) # Running the code
+                                 fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile,
+                                 fn_filter_survey_LR = filter_survey) # Running the code
   if(!is.null(result)) class(result) <- "Syph-fit"
   invisible(result)
 }
@@ -2023,6 +1464,12 @@ RunFitSyphilis1 <- function(name.data.file,
     if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening" else if (xx==9) res = "FSW" else if (xx%in%c(11,12)) res = "MSM"
     res
   })
+
+  filter_survey_mod <- filter_survey
+  if(!is.null(filter_survey))
+  {
+    filter_survey_mod[which(!(filter_survey_mod%in%c("ANC Survey","ANC Routine screening","MSM")))] <- "Other"
+  }
 
   suppressWarnings(SyphData$Prevalence <- as.numeric(as.character(SyphData$Prevalence)))
   suppressWarnings(SyphData$`N positive` <- as.numeric(as.character(SyphData$`N positive`)))
@@ -2105,7 +1552,8 @@ RunFitSyphilis1 <- function(name.data.file,
 
   duration.syphilis=data.frame(t.zone=c("A","B","C"),duration=c(Sypdur_A,Sypdur_B,Sypdur_C))
   if(!is.null(list_countries)) data.syphilis <- subset(data.syphilis, ISO3_letters%in%list_countries)
-  if(!is.null(filter_survey)) data.syphilis <- subset(data.syphilis, Data_type%in%filter_survey)
+
+  #if(!is.null(filter_survey)) data.syphilis <- subset(data.syphilis, Data_type%in%filter_survey)
 
   if(nrow(data.syphilis)==0)
   {
@@ -2176,7 +1624,8 @@ RunFitSyphilis1 <- function(name.data.file,
                                  PopSizeFSW  =fn_PopSizeFSW, ISO3,
                                  year_predict=in_year_predict, zerprev_adj=zero_prev_adj, MtoFRatio,
                                  LRtoHRPOR = f_LRtoHRPOR,
-                                 fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile) # Running the code
+                                 fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile,
+                                 fn_filter_survey_LR = filter_survey_mod) # Running the code
   if(!is.null(result)) class(result) <- "Syph-fit"
   invisible(result)
 }
