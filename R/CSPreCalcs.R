@@ -575,7 +575,7 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
 
   ElWb_CongenSyphdb$'Still/Live births'[] <- NA;
   #ElWb_CongenSyphdb$'Still/Live births' <- ElWb_CongenSyphdb$'Still births'/ElWb_CongenSyphdb$'Live Births'
-  ElWb_CongenSyphdb$'Still/Live births' <- 0 #Per Jane's suggestion in an email on 2023-12-20. We set this to zero
+  ElWb_CongenSyphdb$'Still/Live births' <- 2/100#0 #Per Jane's suggestion in an email on 2023-12-20. We set this to zero
 
   #Imputation of missing
   if(any(is.na(ElWb_CongenSyphdb$'Still/Live births')))
@@ -1890,7 +1890,7 @@ get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
 
   ElWb_CongenSyphdb$'Still/Live births'[] <- NA;
   #ElWb_CongenSyphdb$'Still/Live births' <- ElWb_CongenSyphdb$'Still births'/ElWb_CongenSyphdb$'Live Births'
-  ElWb_CongenSyphdb$'Still/Live births' <- 0 #Per Jane's suggestion in an email on 2023-12-20. We set this to zero
+  ElWb_CongenSyphdb$'Still/Live births' <- 2/100#0 #Per Jane's suggestion in an email on 2023-12-20. We set this to zero
 
   #options(warn=2)
   #

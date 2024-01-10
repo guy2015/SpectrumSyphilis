@@ -702,7 +702,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
       rr_whoreg = cdata.syph$WHO_region[1]
       amy = which(names(PopSize_all2_WHO_regions)==rr_whoreg)
       treat.zone = cdata.syph$WHO_region[1]
-      if(treat.zone=="EURO" | treat.zone=="AMRO") treat.zone =  "A" else if (treat.zone=="AFRO") treat.zone = "C" else treat.zone = "B"
+      if(treat.zone=="EURO" | treat.zone=="AMRO"| treat.zone=="AMR"| treat.zone=="EUR") treat.zone =  "A" else if (treat.zone=="AFRO" | treat.zone=="AFR") treat.zone = "C" else treat.zone = "B"
       dur_Syph = duration.syphilis$duration[which(duration.syphilis$t.zone==treat.zone)];
       tbadd = dur_Syph*PopSize[PopSize$ISO3==vv & !is.na(PopSize$ISO3),-1][1];
       nntest = ifelse(is.vector(tbadd),length(tbadd),nrow(tbadd))
@@ -741,7 +741,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
       tab$Npos = tab$N_tested*tab$Prevalence/100
 
       treat.zone = tab$WHO_region[1]
-      if(treat.zone=="EURO" | treat.zone=="AMRO") treat.zone =  "A" else if (treat.zone=="AFRO") treat.zone = "C" else treat.zone = "B"
+      if(treat.zone=="EURO" | treat.zone=="AMRO" | treat.zone=="EUR" | treat.zone=="AMR") treat.zone =  "A" else if (treat.zone=="AFRO" | treat.zone=="AFR") treat.zone = "C" else treat.zone = "B"
       dur_Syph = duration.syphilis$duration[which(duration.syphilis$t.zone==treat.zone)]
 
       ee=environment()
@@ -1465,11 +1465,25 @@ RunFitSyphilis1 <- function(name.data.file,
     res
   })
 
+  SyphData$"Data type"[SyphData$"Data type"%in%c("ANC Routine screening","ANC Survey")] <- "Pregnant women/General-women"
+  SyphData$"Data type"[SyphData$"Data type"%in%c("BloodDonor Screening Men")] <- "Blood donors/General-men"
+  SyphData$"Data type"[SyphData$"Data type"%in%c("BloodDonor Screening Women")] <- "Blood donors/General-women"
+  SyphData$"Data type"[SyphData$"Data type"%in%c("BloodDonor Screening Men + Women")] <- "Blood donors/General-women/General-men"
+  SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Men")] <- "General-men"
+  SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Men+Women")] <- "General-women/General-men"
+  SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Men + Women")] <- "General-women/General-men"
+  SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Women")] <- "General-women"
+  SyphData <- SyphData[SyphData$"Data type"%in%c("Pregnant women/General-women","Blood donors/General-men",
+                                                       "Blood donors/General-women","Blood donors/General-women/General-men",
+                                                       "General-men","General-women/General-men","General-women"),]
+
+
+
   filter_survey_mod <- filter_survey
-  if(!is.null(filter_survey))
-  {
-    filter_survey_mod[which(!(filter_survey_mod%in%c("ANC Survey","ANC Routine screening","MSM")))] <- "Other"
-  }
+  #if(!is.null(filter_survey))
+  #{
+  #  filter_survey_mod[which(!(filter_survey_mod%in%c("ANC Survey","ANC Routine screening","MSM", "FSW")))] <- "Other"
+  #}
 
   suppressWarnings(SyphData$Prevalence <- as.numeric(as.character(SyphData$Prevalence)))
   suppressWarnings(SyphData$`N positive` <- as.numeric(as.character(SyphData$`N positive`)))
@@ -3376,21 +3390,50 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
   temp_all_res$sex[temp_all_res$population=="FSW"] <- "Females"
   temp_all_res$sex[temp_all_res$population=="Other"] <- "BothSexes"
 
+
+  temp_all_res$population[temp_all_res$population%in%c("ANC Routine screening","ANC Survey")] <- "Pregnant women/General-women"
+  temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men")] <- "Blood donors/General-men"
+  temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Women")] <- "Blood donors/General-women"
+  temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men + Women")] <- "Blood donors/General-women/General-men"
+  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men")] <- "General-men"
+  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men+Women")] <- "General-women/General-men"
+  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men + Women")] <- "General-women/General-men"
+  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Women")] <- "General-women"
+  temp_all_res <- temp_all_res[temp_all_res$population%in%c("Pregnant women/General-women","Blood donors/General-men",
+                                                 "Blood donors/General-women","Blood donors/General-women/General-men",
+                                                 "General-men","General-women/General-men","General-women"),]
+
+
   long_ctr <- data.frame();
   mtitle <- "Syphilis prevalence trend among adults (15-49 y)"
 
   if(sex=="both")
   {
     long_ctr <- rbind(long_ctr_both, temp_all_res)
+    long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "General-women"
+    long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "General-men"
+    long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "General-women"
+    long_ctr$population[long_ctr$population=="Blood donors/General-women/General-men"] <- "Blood donors"
+    long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
+    long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
+    long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
   } else if(sex=="males")
   {
     long_ctr <- rbind(long_ctr_men,long_ctr_msm,temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Males")
+
+    long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "Blood donors"
+    long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
+    long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
+
     mtitle <- "Syphilis prevalence trend among males (15-49 y)"
   } else if (sex=="females")
   {
     long_ctr <- rbind(long_ctr_women,long_ctr_fsw, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Females")
+    long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "Pregnant women"
+    long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "Blood donors"
+    long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
     mtitle <- "Syphilis prevalence trend among females (15-49 y)"
   }
 
@@ -3400,7 +3443,10 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
                                                           "Male Sex Workers","MSM + MSW combined","PWID-Female","PWID-Male",
                                                           "Survey LowRisk Women","Trans-Genders","BloodDonor Screening Women",
                                                           "Prisoners, Men","Prisoners, Women","Wives of PWID","Survey LowRisk Men+Women",
-                                                          "Other"))
+                                                          "Other",
+                                                          "Pregnant women/General-women","Blood donors/General-men", "Blood donors",
+                                                          "Blood donors/General-women","Blood donors/General-women/General-men",
+                                                          "General-men","General-women/General-men","General-women", "Pregnant women"))
 
   long_ctr$weight <- ifelse(long_ctr$weight==1,16,1)
   long_ctr$weight <- factor(long_ctr$weight, levels=c("16","1"))
