@@ -1461,7 +1461,27 @@ RunFitSyphilis1 <- function(name.data.file,
   SyphData$"Data type" <- sapply(SyphData$"Data type, code", function(xx){
     res <- "Other"
     #if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening"
-    if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening" else if (xx==9) res = "FSW" else if (xx%in%c(11,12)) res = "MSM"
+    if(xx==1){
+      res = "ANC Survey"
+    } else if(xx==2) {
+      res = "ANC Routine screening"
+    } else if(xx==3) {
+      res = "Survey LowRisk Women"
+    } else if(xx==4) {
+      res = "Survey LowRisk Men"
+    } else if(xx==5) {
+      res = "Survey LowRisk Men+Women"
+    } else if(xx==6){
+      res = "BloodDonor Screening Women"
+    } else if(xx==7){
+      res = "BloodDonor Screening Men"
+    } else if(xx==8){
+      res = "BloodDonor Screening Men + Women"
+    } else if (xx==9) {
+      res = "FSW"
+    } else if (xx%in%c(11,12)) {
+      res = "MSM"
+    }
     res
   })
 
@@ -1475,7 +1495,7 @@ RunFitSyphilis1 <- function(name.data.file,
   SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Women")] <- "General-women"
   SyphData <- SyphData[SyphData$"Data type"%in%c("Pregnant women/General-women","Blood donors/General-men",
                                                        "Blood donors/General-women","Blood donors/General-women/General-men",
-                                                       "General-men","General-women/General-men","General-women"),]
+                                                       "General-men","General-women/General-men","General-women", "FSW", "MSM"),]
 
 
 

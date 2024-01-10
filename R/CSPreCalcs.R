@@ -52,7 +52,28 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
 
   SyphData$"Data type" <- sapply(SyphData$"Data type, code", function(xx){
     res <- "Other"
-    if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening"
+    #if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening"
+    if(xx==1){
+      res = "ANC Survey"
+    } else if(xx==2) {
+      res = "ANC Routine screening"
+    } else if(xx==3) {
+      res = "Survey LowRisk Women"
+    } else if(xx==4) {
+      res = "Survey LowRisk Men"
+    } else if(xx==5) {
+      res = "Survey LowRisk Men+Women"
+    } else if(xx==6){
+      res = "BloodDonor Screening Women"
+    } else if(xx==7){
+      res = "BloodDonor Screening Men"
+    } else if(xx==8){
+      res = "BloodDonor Screening Men + Women"
+    } else if (xx==9) {
+      res = "FSW"
+    } else if (xx%in%c(11,12)) {
+      res = "MSM"
+    }
     res
   })
 
@@ -1366,7 +1387,28 @@ get_rawCS <- function(namesinputfiles, f_DiagnosticTest)
 
   SyphData$"Data type" <- sapply(SyphData$"Data type, code", function(xx){
     res <- "Other"
-    if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening"
+    #if(xx==1) res = "ANC Survey" else if(xx==2) res = "ANC Routine screening"
+    if(xx==1){
+      res = "ANC Survey"
+    } else if(xx==2) {
+      res = "ANC Routine screening"
+    } else if(xx==3) {
+      res = "Survey LowRisk Women"
+    } else if(xx==4) {
+      res = "Survey LowRisk Men"
+    } else if(xx==5) {
+      res = "Survey LowRisk Men+Women"
+    } else if(xx==6){
+      res = "BloodDonor Screening Women"
+    } else if(xx==7){
+      res = "BloodDonor Screening Men"
+    } else if(xx==8){
+      res = "BloodDonor Screening Men + Women"
+    } else if (xx==9) {
+      res = "FSW"
+    } else if (xx%in%c(11,12)) {
+      res = "MSM"
+    }
     res
   })
 
