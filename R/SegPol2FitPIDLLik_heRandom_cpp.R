@@ -3174,7 +3174,7 @@ saveCS <- function(xCSProj, fname=NULL)
 #' @param years A numeric vector of positions for years on the y-axis. This set to 2010:2021 by default.
 #' @return plot, object from ggplot
 #' @examples Not available
-plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
+plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, fn_population="All")
 {
   if(is.null(syphfits)) return(NULL)
 
@@ -3468,6 +3468,14 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021)
                                                           "Pregnant women/General-women","Blood donors/General-men", "Blood donors",
                                                           "Blood donors/General-women","Blood donors/General-women/General-men",
                                                           "General-men","General-women/General-men","General-women", "Pregnant women"))
+
+
+
+  if(fn_population!="All")
+  {
+    long_ctr <- subset(long_ctr,population%in%fn_population)
+  }
+  if(nrow(long_ctr)==0) return(NULL)
 
   long_ctr$weight <- ifelse(long_ctr$weight==1,16,1)
   long_ctr$weight <- factor(long_ctr$weight, levels=c("16","1"))
