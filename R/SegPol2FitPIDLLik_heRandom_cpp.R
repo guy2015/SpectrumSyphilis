@@ -1303,7 +1303,8 @@ RunFitSyphilis0 <- function(name.data.file,
     if(!is.na(SyphData$DX_Code[ii]))
     {
       hr_adj <- ifelse(any(LowRisk==SyphData$'Data type'[ii]),high_risk_adj,1);
-      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      #adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
       res = SyphData$Prevalence[ii]*adj*hr_adj
     }
     res
@@ -1313,7 +1314,8 @@ RunFitSyphilis0 <- function(name.data.file,
     res = NA
     if(!is.na(SyphData$DX_Code[ii]))
     {
-      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      #res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
     }
     res
   } )
@@ -1538,7 +1540,8 @@ RunFitSyphilis1 <- function(name.data.file,
     if(!is.na(SyphData$DX_Code[ii]))
     {
       hr_adj <- ifelse(any(LowRisk==SyphData$'Data type'[ii]),high_risk_adj,1);
-      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      #adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
       res = SyphData$Prevalence[ii]*adj*hr_adj
     }
     res
@@ -1548,7 +1551,8 @@ RunFitSyphilis1 <- function(name.data.file,
     res = NA;
     if(!is.na(SyphData$DX_Code[ii]))
     {
-      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      #res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
+      res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
     }
     res
   } )
