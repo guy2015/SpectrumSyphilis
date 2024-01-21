@@ -1266,7 +1266,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
     {
       n_row2 = 1
       nligne_decal_titre = 1
-      printed_names <- c(ttt,tttEl,tttInc[1:12],tttIncEl, names(ctr_res$Out_syphilisKPs)[-c(1:4)], names(Out_syphilisPregWom)[-c(1:4)])
+      printed_names <- c(ttt,tttEl,tttInc[1:12],tttIncEl, names(ctr_res$Out_syphilisKPs)[-c(1:4)], names(ctr_res$Out_syphilisPregWom)[-c(1:4)])
       openxlsx::writeData(wb,sheet=Syphilis_Rbootstrap,as.data.frame(matrix(printed_names,nrow=1)), startRow = n_row2, startCol = 1, colNames = FALSE, rowNames = FALSE)
     }
 
