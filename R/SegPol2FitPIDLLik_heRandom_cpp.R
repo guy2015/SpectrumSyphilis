@@ -1240,7 +1240,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         Out_syphilisPregWom <- Out_syphilisPregWom[,c(1:5, 7:9,6)]
         names(Out_syphilisPregWom)[1:4] <- tttKPs[1:4]
-        names(Out_syphilisPregWom)[6:9] <- tttKPs[9:12]
+        names(Out_syphilisPregWom)[6:9] <- tttKPs[13:16]
 
         infoRun = data.frame(fitted=rep("Run", nrow(Out_syphilis)), DLastRun =as.character(rep(Sys.time(),nrow(Out_syphilis))))
         ctr_res <- list(Out_syphilis=Out_syphilis, infoRun=infoRun, CountryDataUse=CountryDataUse, CountryDataUse=CountryDataUse,
@@ -1743,7 +1743,10 @@ RunFitSyphilis1 <- function(name.data.file,
                                  LRtoHRPOR = f_LRtoHRPOR,
                                  fn_min_year_last_data=min_year_last_data, autosavefile=rautosavefile,
                                  fn_filter_survey_LR = filter_survey_mod) # Running the code
-  if(!is.null(result)) class(result) <- "Syph-fit"
+  if(!is.null(result)){
+    result$ListRiskGroupsComp <- filter_survey
+    class(result) <- "Syph-fit"
+  }
   invisible(result)
 }
 
@@ -3285,6 +3288,9 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   all_res$datatype <- "Model"
   all_res$weight <- 1
 
+
+  rgp <- syphfits$ListRiskGroupsComp
+
   #Prevalence rate
   names(all_res)[names(all_res)=="MedianPrevF"] = "PrevMed_Females"
   names(all_res)[names(all_res)=="EstimatePrevF"] = "PrevEst_Females"
@@ -3317,7 +3323,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   names(all_res)[names(all_res)=="CasePrev_LB_2.5%M+F"] = "CasePrevLB_BothSexes"
   names(all_res)[names(all_res)=="CasePrev_UB_97.5%M+F"] = "CasePrevUB_BothSexes"
 
-  #Incidence rates
+  #*Incidence rates
   names(all_res)[names(all_res)=="EstimateIncF"] = "InciMed_Females"
   names(all_res)[names(all_res)=="MedianIncF"] = "InciEst_Females"
   names(all_res)[names(all_res)=="IncLB_2.5%F"] = "InciLB_Females"
@@ -3333,7 +3339,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   names(all_res)[names(all_res)=="IncLB_2.5%M+F"] = "InciLB_BothSexes"
   names(all_res)[names(all_res)=="IncUB_97.5%M+F"] = "InciUB_BothSexes"
 
-  #Incidence cases
+  #*Incidence cases
   names(all_res)[names(all_res)=="CaseInc_EstF"] = "CaseInciMed_Females"
   names(all_res)[names(all_res)=="CaseInc_MedF"] = "CaseInciEst_Females"
   names(all_res)[names(all_res)=="CaseInc_LB_2.5%F"] = "CaseInciLB_Females"
@@ -3349,6 +3355,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   names(all_res)[names(all_res)=="CaseInc_LB_2.5%M+F"] = "CaseInciLB_BothSexes"
   names(all_res)[names(all_res)=="CaseInc_UB_97.5%M+F"] = "CaseInciUB_BothSexes"
 
+  #KP
   names(all_res)[names(all_res)=="EstimatePrevFSW"] = "PrevEst_FSW"
   names(all_res)[names(all_res)=="MedianPrevFSW"] = "PrevMed_FSW"
   names(all_res)[names(all_res)=="PrevLB_2.5%FSW"] = "PrevLB_FSW"
@@ -3370,6 +3377,11 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   names(all_res)[names(all_res)=="CasePrev_MedMSM"] = "CasePrevMed_MSM"
   names(all_res)[names(all_res)=="CasePrev_LB_2.5%MSM"] = "CasePrevLB_MSM"
   names(all_res)[names(all_res)=="CasePrev_UB_97.5%MSM"] = "CasePrevUB_MSM"
+
+  names(all_res)[names(all_res)=="EstimatePrevPregWom"] = "PrevEst_PregWom"
+  names(all_res)[names(all_res)=="MedianPrevPregWom"] = "PrevMed_PregWom"
+  names(all_res)[names(all_res)=="PrevLB_2.5%PregWom"] = "PrevLB_PregWom"
+  names(all_res)[names(all_res)=="PrevUB_97.5%PregWom"] = "PrevUB_PregWom"
 
   if(!(sex%in%c("both", "males", "females"))) return(NULL)
 
@@ -3430,6 +3442,19 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                                BestFit = c(temp_long_ctr$CasePrevEst_FSW,temp_long_ctr$PrevEst_FSW),
                                Lower = c(temp_long_ctr$CasePrevLB_FSW,temp_long_ctr$PrevLB_FSW),
                                Upper = c(temp_long_ctr$CasePrevUB_FSW,temp_long_ctr$PrevUB_FSW)
+  )
+
+  long_ctr_pregwom <- data.frame(Country = ctr,
+                             sex = "Females",
+                             population = "Pregnant Women",
+                             datatype = "Model",
+                             weight = 1,
+                             Year =c(temp_long_ctr$Year,temp_long_ctr$Year),
+                             indicator = rep(c("PrevalenceRate"), rep(nrow(temp_long_ctr),1)),
+                             Median = c(temp_long_ctr$PrevMed_FSW),
+                             BestFit = c(temp_long_ctr$PrevEst_FSW),
+                             Lower = c(temp_long_ctr$PrevLB_FSW),
+                             Upper = c(temp_long_ctr$PrevUB_FSW)
   )
 
   long_ctr_both <- data.frame(Country = ctr,
@@ -3494,17 +3519,17 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   temp_all_res$sex[temp_all_res$population=="Other"] <- "BothSexes"
 
 
-  temp_all_res$population[temp_all_res$population%in%c("ANC Routine screening","ANC Survey")] <- "Pregnant women/General-women"
-  temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men")] <- "Blood donors/General-men"
-  temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Women")] <- "Blood donors/General-women"
-  temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men + Women")] <- "Blood donors/General-women/General-men"
-  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men")] <- "General-men"
-  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men+Women")] <- "General-women/General-men"
-  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men + Women")] <- "General-women/General-men"
-  temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Women")] <- "General-women"
-  temp_all_res <- temp_all_res[temp_all_res$population%in%c("Pregnant women/General-women","Blood donors/General-men",
-                                                 "Blood donors/General-women","Blood donors/General-women/General-men",
-                                                 "General-men","General-women/General-men","General-women", "FSW", "MSM"),]
+  #temp_all_res$population[temp_all_res$population%in%c("ANC Routine screening","ANC Survey")] <- "Pregnant women/General-women"
+  #temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men")] <- "Blood donors/General-men"
+  #temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Women")] <- "Blood donors/General-women"
+  #temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men + Women")] <- "Blood donors/General-women/General-men"
+  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men")] <- "General-men"
+  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men+Women")] <- "General-women/General-men"
+  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men + Women")] <- "General-women/General-men"
+  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Women")] <- "General-women"
+  #temp_all_res <- temp_all_res[temp_all_res$population%in%c("Pregnant women/General-women","Blood donors/General-men",
+  #                                               "Blood donors/General-women","Blood donors/General-women/General-men",
+  #                                               "General-men","General-women/General-men","General-women", "FSW", "MSM"),]
 
   long_ctr <- data.frame();
   mtitle <- "Syphilis prevalence trend among adults (15-49 y)"
@@ -3512,32 +3537,32 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   if(sex=="both")
   {
     long_ctr <- rbind(long_ctr_both, temp_all_res)
-    long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "General-women"
-    long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "General-men"
-    long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "General-women"
-    long_ctr$population[long_ctr$population=="Blood donors/General-women/General-men"] <- "Blood donors"
-    long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
-    long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
-    long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
+    #long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "General-women"
+    #long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "General-men"
+    #long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "General-women"
+    #long_ctr$population[long_ctr$population=="Blood donors/General-women/General-men"] <- "Blood donors"
+    #long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
+    #long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
+    #long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
   } else if(sex=="males")
   {
-    temp_all_res$sex[temp_all_res$population%in%c("Blood donors/General-men", "General-men", "MSM")] <- "Males"
+    temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, "MSM")] <- "Males"
     long_ctr <- rbind(long_ctr_men,long_ctr_msm,temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Males")
 
-    long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "Blood donors"
-    long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
-    long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
+    #long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "Blood donors"
+    #long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
+    #long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
 
     mtitle <- "Syphilis prevalence trend among males (15-49 y)"
   } else if (sex=="females")
   {
-    temp_all_res$sex[temp_all_res$population%in%c("Blood donors/General-women", "General-women","Pregnant women/General-women", "FSW")] <- "Females"
-    long_ctr <- rbind(long_ctr_women,long_ctr_fsw, temp_all_res)
+    temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, rgp$PregWom, "Pregnant women", "FSW")] <- "Females"
+    long_ctr <- rbind(long_ctr_women,long_ctr_fsw, long_ctr_pregwom, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Females")
-    long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "Pregnant women"
-    long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "Blood donors"
-    long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
+    #long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "Pregnant women"
+    #long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "Blood donors"
+    #long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
     mtitle <- "Syphilis prevalence trend among females (15-49 y)"
   }
 
@@ -3556,8 +3581,31 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
 
   if(fn_population!="All")
   {
-    long_ctr <- subset(long_ctr,population%in%fn_population)
+    temp_pop = NULL
+    if(fn_population=="General-men" )
+    {
+      temp_pop = rgp$GeneMen
+    } else if(fn_population=="General-women" )
+    {
+      temp_pop = rgp$GeneWom
+    } else if(fn_population=="Pregnant women" )
+    {
+      temp_pop = rgp$PregWom
+    } else if(fn_population=="FSW" )
+    {
+      temp_pop = "FSW"
+    } else if(fn_population=="MSM" )
+    {
+      temp_pop = "MSM"
+    }
+    if(!is.null(temp_pop)) long_ctr <- subset(long_ctr,population%in%temp_pop)
   }
+
+  if(fn_population=="None")
+  {
+    long_ctr <- subset(long_ctr,datatype%in%"Reported")
+  }
+
   if(nrow(long_ctr)==0) return(NULL)
 
   long_ctr$weight <- ifelse(long_ctr$weight==1,16,1)
