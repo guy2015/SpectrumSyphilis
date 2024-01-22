@@ -3572,7 +3572,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                                                           "Male Sex Workers","MSM + MSW combined","PWID-Female","PWID-Male",
                                                           "Survey LowRisk Women","Trans-Genders","BloodDonor Screening Women",
                                                           "Prisoners, Men","Prisoners, Women","Wives of PWID","Survey LowRisk Men+Women",
-                                                          "Other", "Pregnant women",
+                                                          "Other",
                                                           "Pregnant women/General-women","Blood donors/General-men", "Blood donors",
                                                           "Blood donors/General-women","Blood donors/General-women/General-men",
                                                           "General-men","General-women/General-men","General-women", "Pregnant women"))
