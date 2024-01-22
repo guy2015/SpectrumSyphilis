@@ -3446,15 +3446,15 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
 
   long_ctr_pregwom <- data.frame(Country = ctr,
                              sex = "Females",
-                             population = "Pregnant Women",
+                             population = "Pregnant women",
                              datatype = "Model",
                              weight = 1,
-                             Year =c(temp_long_ctr$Year,temp_long_ctr$Year),
+                             Year =c(temp_long_ctr$Year),
                              indicator = rep(c("PrevalenceRate"), rep(nrow(temp_long_ctr),1)),
-                             Median = c(temp_long_ctr$PrevMed_FSW),
-                             BestFit = c(temp_long_ctr$PrevEst_FSW),
-                             Lower = c(temp_long_ctr$PrevLB_FSW),
-                             Upper = c(temp_long_ctr$PrevUB_FSW)
+                             Median = c(temp_long_ctr$PrevMed_PregWom),
+                             BestFit = c(temp_long_ctr$PrevEst_PregWom),
+                             Lower = c(temp_long_ctr$PrevLB_PregWom),
+                             Upper = c(temp_long_ctr$PrevUB_PregWom)
   )
 
   long_ctr_both <- data.frame(Country = ctr,
@@ -3546,7 +3546,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     #long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
   } else if(sex=="males")
   {
-    temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, "MSM")] <- "Males"
+    temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, "All", "MSM")] <- "Males"
     long_ctr <- rbind(long_ctr_men,long_ctr_msm,temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Males")
 
@@ -3557,7 +3557,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     mtitle <- "Syphilis prevalence trend among males (15-49 y)"
   } else if (sex=="females")
   {
-    temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, rgp$PregWom, "Pregnant women", "FSW")] <- "Females"
+    temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneWom, rgp$PregWom, "All", "Pregnant women", "FSW")] <- "Females"
     long_ctr <- rbind(long_ctr_women,long_ctr_fsw, long_ctr_pregwom, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Females")
     #long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "Pregnant women"
@@ -3572,7 +3572,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                                                           "Male Sex Workers","MSM + MSW combined","PWID-Female","PWID-Male",
                                                           "Survey LowRisk Women","Trans-Genders","BloodDonor Screening Women",
                                                           "Prisoners, Men","Prisoners, Women","Wives of PWID","Survey LowRisk Men+Women",
-                                                          "Other",
+                                                          "Other", "Pregnant women",
                                                           "Pregnant women/General-women","Blood donors/General-men", "Blood donors",
                                                           "Blood donors/General-women","Blood donors/General-women/General-men",
                                                           "General-men","General-women/General-men","General-women", "Pregnant women"))
@@ -3584,13 +3584,13 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     temp_pop = NULL
     if(fn_population=="General-men" )
     {
-      temp_pop = rgp$GeneMen
+      temp_pop = c(rgp$GeneMen,"All")
     } else if(fn_population=="General-women" )
     {
-      temp_pop = rgp$GeneWom
+      temp_pop = c(rgp$GeneWom,"All")
     } else if(fn_population=="Pregnant women" )
     {
-      temp_pop = rgp$PregWom
+      temp_pop = c(rgp$PregWom,"Pregnant women")
     } else if(fn_population=="FSW" )
     {
       temp_pop = "FSW"
@@ -3598,8 +3598,19 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     {
       temp_pop = "MSM"
     }
-    if(!is.null(temp_pop)) long_ctr <- subset(long_ctr,population%in%temp_pop)
-  }
+
+    if(!is.null(temp_pop))
+    {
+      long_ctr <- subset(long_ctr,population%in%temp_pop)
+      if(fn_population=="General-men" )
+      {
+        long_ctr$population[long_ctr$population=="All"] <- "General-men"
+      } else if(fn_population=="General-women" )
+      {
+        long_ctr$population[long_ctr$population=="All"] <- "General-women"
+      }
+    }
+  }# if(fn_population!="All")
 
   if(fn_population=="None")
   {
