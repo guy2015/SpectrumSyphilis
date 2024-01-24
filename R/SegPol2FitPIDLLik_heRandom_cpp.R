@@ -995,7 +995,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
               tab.boot$estimprev = gmodestim0PID_Boot$funcestprojprev(scyears_boot)
 
               prevOR.boot <- GetLROR(dat=tab.boot, L_surveytypes=fn_filter_survey_LR)
-              temp_prev.boot = gmodestim0PID$funcestprojprev(Vect_Year_Pred) #pred_glmfit(Years=Out_syphilis$year,res) #
+              temp_prev.boot = gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred) #pred_glmfit(Years=Out_syphilis$year,res) #
 
               resboot_SyphilisPrevF[count,] = temp_prev.boot*prevOR.boot["GeneWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneWom"])#gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res)
               resboot_SyphilisInciF[count,] = gmodestim0PID_Boot$funcestprojinci(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res
