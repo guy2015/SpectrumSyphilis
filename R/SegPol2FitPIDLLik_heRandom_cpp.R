@@ -1240,7 +1240,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         Out_syphilisPregWom <- Out_syphilisPregWom[,c(1:5, 7:9,6)]
         names(Out_syphilisPregWom)[1:4] <- tttKPs[1:4]
-        names(Out_syphilisPregWom)[6:9] <- tttKPs[13:16]
+        names(Out_syphilisPregWom)[5:8] <- tttKPs[13:16]
 
         infoRun = data.frame(fitted=rep("Run", nrow(Out_syphilis)), DLastRun =as.character(rep(Sys.time(),nrow(Out_syphilis))))
         ctr_res <- list(Out_syphilis=Out_syphilis, infoRun=infoRun, CountryDataUse=CountryDataUse, CountryDataUse=CountryDataUse,
