@@ -842,8 +842,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         if(nrow(tab)==0) return(0)
 
         vvprob = tab$Weights
-        err_syph = lapply(1:nrow(tab),function(ll) which(tab$DX_Code==tab$DX_Code[ll]))
-        wei_syph = lapply(1:nrow(tab),function(ll) {ww0 = tab$Weights[which(tab$DX_Code==tab$DX_Code[ll])]; if(length(ww0)>0) ww0=ww0/sum(ww0); ww0} )
+        err_syph = lapply(1:nrow(tab),function(ll) which(tab$DX_Code==tab$DX_Code[ll] & tab$Sex==tab$Sex[ll]))
+        wei_syph = lapply(1:nrow(tab),function(ll) {ww0 = tab$Weights[which(tab$DX_Code==tab$DX_Code[ll] & tab$Sex==tab$Sex[ll])]; if(length(ww0)>0) ww0=ww0/sum(ww0); ww0} )
 
         err_samp = function(ll) {vv=as.vector(err_syph[[ll]]); sprob= as.vector(wei_syph[[ll]]) ; if (length(vv)==1) res= vv else res=sample(vv, prob=sprob, replace=TRUE)[1]}
         ERR_SAMP = function(ll) as.vector(sapply(ll,err_samp))
