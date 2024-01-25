@@ -908,8 +908,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         if(nrow(tab)==0) return(0)
 
         vvprob = tab$Weights
-        err_syph = lapply(1:nrow(tab),function(ll) which(tab$DX_Code==tab$DX_Code[ll] & tab$Sex==tab$Sex[ll]))
-        wei_syph = lapply(1:nrow(tab),function(ll) {ww0 = tab$Weights[which(tab$DX_Code==tab$DX_Code[ll] & tab$Sex==tab$Sex[ll])]; if(length(ww0)>0) ww0=ww0/sum(ww0); ww0} )
+        err_syph = lapply(1:nrow(tab),function(ll) which(tab$DX_Code==tab$DX_Code[ll] & tab$Data_type==tab$Data_type[ll]))
+        wei_syph = lapply(1:nrow(tab),function(ll) {ww0 = tab$Weights[which(tab$DX_Code==tab$DX_Code[ll] & tab$Data_type==tab$Data_type[ll])]; if(length(ww0)>0) ww0=ww0/sum(ww0); ww0} )
 
         err_samp = function(ll) {vv=as.vector(err_syph[[ll]]); sprob= as.vector(wei_syph[[ll]]) ; if (length(vv)==1) res= vv else res=sample(vv, prob=sprob, replace=TRUE)[1]}
         ERR_SAMP = function(ll) as.vector(sapply(ll,err_samp))
@@ -2098,9 +2098,9 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
     if(nrow(temp_ctr_prev)>=1) temp_ctr <- cbind(temp_ctr,temp_ctr_prev)
 
     #SpectrumBirths
-    temp_ctr$EstimatePrevF <- fn_impute('EstimatePrevF',temp_ctr,IncideAndPrevalence)
-    temp_ctr$'PrevLB_2.5%F' <- fn_impute('PrevLB_2.5%F',temp_ctr,IncideAndPrevalence)
-    temp_ctr$'PrevUB_97.5%F' <- fn_impute('PrevUB_97.5%F',temp_ctr,IncideAndPrevalence)
+    temp_ctr$EstimatePrevF <- fn_impute('EstimatePrevPregWom',temp_ctr,IncideAndPrevalence)#fn_impute('EstimatePrevF',temp_ctr,IncideAndPrevalence)
+    temp_ctr$'PrevLB_2.5%F' <- fn_impute('PrevLB_2.5%PregWom',temp_ctr,IncideAndPrevalence)#fn_impute('PrevLB_2.5%F',temp_ctr,IncideAndPrevalence)
+    temp_ctr$'PrevUB_97.5%F' <- fn_impute('PrevUB_97.5%PregWom',temp_ctr,IncideAndPrevalence)#fn_impute('PrevUB_97.5%F',temp_ctr,IncideAndPrevalence)
 
     for(ii in seq_len(length(temp_ctr$'PrevUB_97.5%F')))
     {
