@@ -434,6 +434,29 @@ BestFit2PIDLLik_Random <- function(vX=obs_time,vY=obs_prev,vW=obs_weig, xResBest
   list(All_Pars = interm, recov=frecov,gxmax=gxmax,funcestprojprev=funcestprojprev, scfrac=scfrac_in, funcestprojinci=funcestprojinci,frestrknots=restrknots_in, data=list(vX=vX,vY=vY,vW=vW))
 }
 
+# GetLROR <- function(dat, L_surveytypes)
+# {
+#   fn <- function(par)
+#   {
+#     X <- exp(par)
+#     projprev <- numeric()
+#     projprev[dat$Data_type%in%L_surveytypes$PregWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1])
+#     projprev[dat$Data_type%in%L_surveytypes$GeneWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[2]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[2])
+#     projprev[dat$Data_type%in%L_surveytypes$GeneMen] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3])
+#
+#     nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
+#     nnloss
+#   }
+#
+#   par0 <- rep(0,3)
+#   opt0 <- optim(par0,fn)
+#   opt1 <- optim(opt0$par,fn, method="BFGS")
+#
+#   res <- exp(opt1$par)
+#   names(res) <- c("PregWom","GeneWom","GeneMen")
+#   res
+# }
+
 GetLROR <- function(dat, L_surveytypes)
 {
   fn <- function(par)
@@ -444,15 +467,54 @@ GetLROR <- function(dat, L_surveytypes)
     projprev[dat$Data_type%in%L_surveytypes$GeneWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[2]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[2])
     projprev[dat$Data_type%in%L_surveytypes$GeneMen] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3])
 
+    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/1000
+    nnloss
+  }
+
+  fm_pw <- function(par)
+  {
+    X <- exp(par)
+    projprev <- numeric()
+    projprev[dat$Data_type%in%L_surveytypes$PregWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1])
     nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
     nnloss
   }
 
-  par0 <- rep(0,3)
-  opt0 <- optim(par0,fn)
-  opt1 <- optim(opt0$par,fn, method="BFGS")
+  par0_pw <- rep(0,2)
+  opt0_pw <- optim(par0_pw,fm_pw)
+  opt1_pw <- optim(opt0_pw$par,fm_pw, method="BFGS")$par
 
-  res <- exp(opt1$par)
+  fm_gw <- function(par)
+  {
+    X <- exp(par)
+    projprev <- numeric()
+    projprev[dat$Data_type%in%L_surveytypes$GeneWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[1])
+    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
+    nnloss
+  }
+
+  par0_gw <- rep(0,2)
+  opt0_gw <- optim(par0_gw,fm_gw)
+  opt1_gw <- optim(opt0_gw$par,fm_gw, method="BFGS")$par
+
+
+  fm_gm <- function(par)
+  {
+    X <- exp(par)
+    projprev <- numeric()
+    projprev[dat$Data_type%in%L_surveytypes$GeneMen] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[1])
+    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
+    nnloss
+  }
+
+  par0_gm <- rep(0,2)
+  opt0_gm <- optim(par0_gm,fm_gm)
+  opt1_gm <- optim(opt0_gm$par,fm_gm, method="BFGS")$par
+
+  par1 <- c(par0_pw[1],opt1_gw[1], opt1_gm[1])
+  par1 <- optim(par1,fn)$par
+
+  res <- exp(par1)
   names(res) <- c("PregWom","GeneWom","GeneMen")
   res
 }
@@ -488,7 +550,8 @@ Default_List_surveytypes <- vector("list",3)
 names(Default_List_surveytypes) <- c("PregWom", "GeneWom", "GeneMen")
 Default_List_surveytypes$PregWom <- c("ANC Routine screening","ANC Survey")
 Default_List_surveytypes$GeneWom <- c("BloodDonor Screening Women","BloodDonor Screening Men + Women",
-                              "Survey LowRisk Men+Women", "Survey LowRisk Men + Women","Survey LowRisk Women")
+                              "Survey LowRisk Men+Women", "Survey LowRisk Men + Women","Survey LowRisk Women",
+                              "ANC Routine screening","ANC Survey")
 Default_List_surveytypes$GeneMen <- c("BloodDonor Screening Men","BloodDonor Screening Men + Women",
                               "Survey LowRisk Men+Women", "Survey LowRisk Men + Women", "Survey LowRisk Men")
 
@@ -761,6 +824,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
       resboot_SyphilisPrevFSW = resboot_Syphilis
       resboot_SyphilisPrevMSM = resboot_Syphilis
       resboot_SyphilisPrevPregWom = resboot_Syphilis
+      resboot_SyphilisPrevGeneWom = resboot_Syphilis
+      resboot_SyphilisPrevGeneMen = resboot_Syphilis
 
       Out_syphilis = data.frame(year=year_predict)
       Out_syphilis$Country = lc;
@@ -769,6 +834,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
       Out_syphilis$WHO_Region = cdata.syph$WHO_region[1]
       Out_syphilisKPs <- Out_syphilis
       Out_syphilisPregWom <- Out_syphilis
+      Out_syphilisGeneWom <- Out_syphilis
+      Out_syphilisGeneMen <- Out_syphilis
       #Incidence
       incboot_Syphilis = resboot_Syphilis
 
@@ -836,7 +903,6 @@ fCountryAnalysis_glob <- function(Nboots=1000,
       tabb_all$estim <- tabb_all$error <- NA
       #if(!is.null(fn_filter_survey_LR))
       {
-        #tab <- subset(tabb_all,Data_type%in%fn_filter_survey_LR)
         tab <- subset(tabb_all,!(Data_type%in%c("MSM", "FSW"))) #SubPopForPrev
 
         if(nrow(tab)==0) return(0)
@@ -886,16 +952,15 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         prevOR <- GetLROR(dat=tab, L_surveytypes=fn_filter_survey_LR)
         temp_prev = gmodestim0PID$funcestprojprev(Vect_Year_Pred) #pred_glmfit(Years=Out_syphilis$year,res) #
 
-        Out_syphilis$PrevEstF = temp_prev*prevOR['GeneWom']/(1-temp_prev+temp_prev*prevOR['GeneWom'])
-        Out_syphilis$PrevEstM = temp_prev*prevOR['GeneMen']/(1-temp_prev+temp_prev*prevOR['GeneMen'])
+        Out_syphilisGeneWom$PrevEstF = Out_syphilis$PrevEstF = temp_prev*prevOR['GeneWom']/(1-temp_prev+temp_prev*prevOR['GeneWom'])
+        Out_syphilisGeneMen$PrevEstM = Out_syphilis$PrevEstM = temp_prev*prevOR['GeneMen']/(1-temp_prev+temp_prev*prevOR['GeneMen'])
         Out_syphilisPregWom$PrevEstPregWom = temp_prev*prevOR['PregWom']/(1-temp_prev+temp_prev*prevOR['PregWom'])
 
         Out_syphilisPregWom$CasePrevEstPregWom = Out_syphilisPregWom$PrevEstPregWom
         #
-        #Out_syphilis$PrevEstF = gmodestim0PID$funcestprojprev(Vect_Year_Pred) #pred_glmfit(Years=Out_syphilis$year,res) #
-        #Out_syphilis$PrevEstM = Out_syphilis$PrevEstF
-        Out_syphilis$CasePrevEstF = Out_syphilis$PrevEstF
-        Out_syphilis$CasePrevEstM = Out_syphilis$PrevEstM
+
+        Out_syphilisGeneWom$CasePrevEstF = Out_syphilis$CasePrevEstF = Out_syphilis$PrevEstF
+        Out_syphilisGeneMen$CasePrevEstM = Out_syphilis$CasePrevEstM = Out_syphilis$PrevEstM
         Out_syphilis$CasePrevEstMPlusF = Out_syphilis$PrevEstF
 
         Out_syphilis$InciEstF = gmodestim0PID$funcestprojinci(Vect_Year_Pred) #pred_glmfit(Years=Out_syphilis$year,res) #
@@ -943,10 +1008,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         icc=icc+1;
         if(icc>=10)
         {
-          Out_syphilis$PrevEstF[] = NA #
-          Out_syphilis$PrevEstM[] = NA
-          Out_syphilis$CasePrevEstF[] = NA #
-          Out_syphilis$CasePrevEstM[] = NA
+          Out_syphilisGeneWom$PrevEstF = Out_syphilis$PrevEstF[] = NA #
+          Out_syphilisGeneMen$PrevEstM[] = Out_syphilis$PrevEstM[] = NA
+          Out_syphilisGeneWom$CasePrevEstF[] = Out_syphilis$CasePrevEstF[] = NA #
+          Out_syphilisGeneMen$CasePrevEstM[] = Out_syphilis$CasePrevEstM[] = NA
 
           Out_syphilis$InciEstM[] = NA #
           Out_syphilis$CaseInciEstF[] = NA #
@@ -997,10 +1062,11 @@ fCountryAnalysis_glob <- function(Nboots=1000,
               prevOR.boot <- GetLROR(dat=tab.boot, L_surveytypes=fn_filter_survey_LR)
               temp_prev.boot = gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred) #pred_glmfit(Years=Out_syphilis$year,res) #
 
-              resboot_SyphilisPrevF[count,] = temp_prev.boot*prevOR.boot["GeneWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneWom"])#gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res)
+              resboot_SyphilisPrevGeneWom[count,] = resboot_SyphilisPrevF[count,] = temp_prev.boot*prevOR.boot["GeneWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneWom"])#gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res)
               resboot_SyphilisInciF[count,] = gmodestim0PID_Boot$funcestprojinci(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res
 
-              resboot_SyphilisPrevM[count,] = temp_prev.boot*prevOR.boot["GeneMen"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneMen"])
+
+              resboot_SyphilisPrevGeneMen[count,] = resboot_SyphilisPrevM[count,] = temp_prev.boot*prevOR.boot["GeneMen"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneMen"])
               resboot_SyphilisPrevPregWom[count,] = temp_prev.boot*prevOR.boot["PregWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["PregWom"])
               break;
             } else
@@ -1009,16 +1075,15 @@ fCountryAnalysis_glob <- function(Nboots=1000,
             }
             if(icc>=10)
             {
-              resboot_SyphilisPrevF[count,] = NA
+              resboot_SyphilisPrevGeneWom[count,] = resboot_SyphilisPrevF[count,] = NA
               resboot_SyphilisInciF[count,] = NA
-              resboot_SyphilisPrevM[count,] = NA
+              resboot_SyphilisPrevGeneMen[count,] = resboot_SyphilisPrevM[count,] = NA
               resboot_SyphilisPrevPregWom[count,] = NA
               break;
             }
           }
 
           zzz <-  MtoFRatio*(1+(-0.3+0.6*expit(rnorm(1))))
-          #resboot_SyphilisPrevM[count,] = zzz*resboot_SyphilisPrevF[count,]
           resboot_SyphilisInciM[count,] = zzz*resboot_SyphilisInciF[count,]
 
           numrep <- length(resboot_SyphilisInciM[count,])
@@ -1072,6 +1137,9 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         CI_SyphilisPrevF = apply(resboot_SyphilisPrevF,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCasePrevF = CI_SyphilisPrevF
 
+        CI_SyphilisPrevGeneWom = apply(resboot_SyphilisPrevGeneWom,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
+        CI_SyphilisCasePrevGeneWom = CI_SyphilisPrevGeneWom
+
         CI_SyphilisPrevFSW = apply(resboot_SyphilisPrevFSW,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCasePrevFSW = CI_SyphilisPrevFSW
 
@@ -1080,6 +1148,9 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         CI_SyphilisPrevM = apply(resboot_SyphilisPrevM,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCasePrevM = CI_SyphilisPrevM
+
+        CI_SyphilisPrevGeneMen = apply(resboot_SyphilisPrevGeneMen,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
+        CI_SyphilisCasePrevGeneMen = CI_SyphilisPrevGeneMen
 
         CI_SyphilisPrevMSM = apply(resboot_SyphilisPrevMSM,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCasePrevMSM = CI_SyphilisPrevMSM
@@ -1111,14 +1182,14 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilisKPs$PopFSW = popFSW
 
         #Females
-        Out_syphilis$PrevEstF_Med <- CI_SyphilisPrevF[2,]
-        Out_syphilis$PrevEstF_LoB <- CI_SyphilisPrevF[1,]
-        Out_syphilis$PrevEstF_UpB <- CI_SyphilisPrevF[3,]
+        Out_syphilisGeneWom$PrevEstF_Med <- Out_syphilis$PrevEstF_Med <- CI_SyphilisPrevF[2,]
+        Out_syphilisGeneWom$PrevEstF_LoB <- Out_syphilis$PrevEstF_LoB <- CI_SyphilisPrevF[1,]
+        Out_syphilisGeneWom$PrevEstF_UpB <- Out_syphilis$PrevEstF_UpB <- CI_SyphilisPrevF[3,]
 
-        Out_syphilis$CasePrevEstF <- Out_syphilis$CasePrevEstF*(popF-popFSW)
-        Out_syphilis$CasePrevMedF <- CI_SyphilisCasePrevF[2,]*(popF-popFSW)
-        Out_syphilis$CasePrevF_LoB <- CI_SyphilisCasePrevF[1,]*(popF-popFSW)
-        Out_syphilis$CasePrevF_UpB <- CI_SyphilisCasePrevF[3,]*(popF-popFSW)
+        Out_syphilisGeneWom$CasePrevEstF <- Out_syphilis$CasePrevEstF <- Out_syphilis$CasePrevEstF*(popF-popFSW)
+        Out_syphilisGeneWom$CasePrevMedF <- Out_syphilis$CasePrevMedF <- CI_SyphilisCasePrevF[2,]*(popF-popFSW)
+        Out_syphilisGeneWom$CasePrevF_LoB <- Out_syphilis$CasePrevF_LoB <- CI_SyphilisCasePrevF[1,]*(popF-popFSW)
+        Out_syphilisGeneWom$CasePrevF_UpB <- Out_syphilis$CasePrevF_UpB <- CI_SyphilisCasePrevF[3,]*(popF-popFSW)
 
         Out_syphilis$InciEstF_Med <- CI_SyphilisInciF[2,]
         Out_syphilis$InciEstF_LoB <- CI_SyphilisInciF[1,]
@@ -1144,16 +1215,20 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilisPregWom$PrevEstPregWom_LoB <- CI_SyphilisPrevPregWom[1,]
         Out_syphilisPregWom$PrevEstPregWom_UpB <- CI_SyphilisPrevPregWom[3,]
 
+        #General-Women
+        Out_syphilisGeneWom$PrevEstGeneWom_Med <- CI_SyphilisPrevGeneWom[2,]
+        Out_syphilisGeneWom$PrevEstGeneWom_LoB <- CI_SyphilisPrevGeneWom[1,]
+        Out_syphilisGeneWom$PrevEstGeneWom_UpB <- CI_SyphilisPrevGeneWom[3,]
         ##***************************************************
         #Males
-        Out_syphilis$PrevEstM_Med <- CI_SyphilisPrevM[2,]
-        Out_syphilis$PrevEstM_LoB <- CI_SyphilisPrevM[1,]
-        Out_syphilis$PrevEstM_UpB <- CI_SyphilisPrevM[3,]
+        Out_syphilisGeneMen$PrevEstM_Med <- Out_syphilis$PrevEstM_Med <- CI_SyphilisPrevM[2,]
+        Out_syphilisGeneMen$PrevEstM_LoB <- Out_syphilis$PrevEstM_LoB <- CI_SyphilisPrevM[1,]
+        Out_syphilisGeneMen$PrevEstM_UpB <- Out_syphilis$PrevEstM_UpB <- CI_SyphilisPrevM[3,]
 
-        Out_syphilis$CasePrevEstM <- Out_syphilis$CasePrevEstM*(popM-popMSM)
-        Out_syphilis$CasePrevMedM <- CI_SyphilisCasePrevM[2,]*(popM-popMSM)
-        Out_syphilis$CasePrevM_LoB <- CI_SyphilisCasePrevM[1,]*(popM-popMSM)
-        Out_syphilis$CasePrevM_UpB <- CI_SyphilisCasePrevM[3,]*(popM-popMSM)
+        Out_syphilisGeneMen$CasePrevEstM <- Out_syphilis$CasePrevEstM <- Out_syphilis$CasePrevEstM*(popM-popMSM)
+        Out_syphilisGeneMen$CasePrevMedM <- Out_syphilis$CasePrevMedM <- CI_SyphilisCasePrevM[2,]*(popM-popMSM)
+        Out_syphilisGeneMen$CasePrevM_LoB <- Out_syphilis$CasePrevM_LoB <- CI_SyphilisCasePrevM[1,]*(popM-popMSM)
+        Out_syphilisGeneMen$CasePrevM_UpB <- Out_syphilis$CasePrevM_UpB <- CI_SyphilisCasePrevM[3,]*(popM-popMSM)
 
         Out_syphilis$InciEstM_Med <- CI_SyphilisInciM[2,]
         Out_syphilis$InciEstM_LoB <- CI_SyphilisInciM[1,]
@@ -1173,9 +1248,46 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilisKPs$CasePrevMedMSM <- CI_SyphilisCasePrevMSM[2,]*popMSM
         Out_syphilisKPs$CasePrevMSM_LoB <- CI_SyphilisCasePrevMSM[1,]*popMSM
         Out_syphilisKPs$CasePrevMSM_UpB <- CI_SyphilisCasePrevMSM[3,]*popMSM
+
+        #General-men
+        Out_syphilisGeneMen$PrevEstGeneMen_Med <- CI_SyphilisPrevGeneMen[2,]
+        Out_syphilisGeneMen$PrevEstGeneMen_LoB <- CI_SyphilisPrevGeneMen[1,]
+        Out_syphilisGeneMen$PrevEstGeneMen_UpB <- CI_SyphilisPrevGeneMen[3,]
+
         ##############################################################################
+        #Males
+        Out_syphilis$CasePrevEstM <- Out_syphilis$CasePrevEstM+Out_syphilisKPs$CasePrevEstMSM
+        Out_syphilis$PrevEstM <- Out_syphilis$CasePrevEstM/popM
+
+        resboot_SyphilisCasePrevM <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
+        {
+          as.numeric(resboot_SyphilisPrevGeneMen[ii,])*(popM-popMSM)+as.numeric(resboot_SyphilisPrevMSM[ii,])*popMSM
+        }))
+
+        resboot_SyphilisPrevM <- t(sapply(1:nrow(resboot_SyphilisCasePrevM), function(ii)
+        {
+          as.numeric(resboot_SyphilisCasePrevM[ii,])/(popM)
+        }))
+
+
+        #Females
+        Out_syphilis$CasePrevEstF <- Out_syphilis$CasePrevEstF+Out_syphilisKPs$CasePrevEstFSW
+        Out_syphilis$PrevEstF <- Out_syphilis$CasePrevEstF/popF
+
+
+        resboot_SyphilisCasePrevF <- t(sapply(1:nrow(resboot_SyphilisPrevF), function(ii)
+        {
+          as.numeric(resboot_SyphilisPrevGeneWom[ii,])*(popF-popFSW)+as.numeric(resboot_SyphilisPrevFSW[ii,])*popFSW
+        }))
+
+        resboot_SyphilisPrevF <- t(sapply(1:nrow(resboot_SyphilisCasePrevF), function(ii)
+        {
+          as.numeric(resboot_SyphilisCasePrevF[ii,])/(popF)
+        }))
+
+
         #BothSexes
-        Out_syphilis$CasePrevEstMPlusF <- Out_syphilis$CasePrevEstF+Out_syphilisKPs$CasePrevEstFSW+Out_syphilis$CasePrevEstM+Out_syphilisKPs$CasePrevEstMSM
+        Out_syphilis$CasePrevEstMPlusF <- Out_syphilis$CasePrevEstF + Out_syphilis$CasePrevEstM
         Out_syphilis$PrevEstMPlusF <- Out_syphilis$CasePrevEstMPlusF/(popM+popF)
 
         Out_syphilis$CaseInciEstMPlusF <- Out_syphilis$CaseInciEstF+Out_syphilis$CaseInciEstM
@@ -1183,8 +1295,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         resboot_SyphilisCasePrevMPlusF <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
         {
-          as.numeric(resboot_SyphilisPrevM[ii,])*(popM-popMSM)+as.numeric(resboot_SyphilisPrevMSM[ii,])*popMSM+
-            as.numeric(resboot_SyphilisPrevF[ii,])*(popF-popFSW)+as.numeric(resboot_SyphilisPrevFSW[ii,])*popFSW
+          as.numeric(resboot_SyphilisPrevGeneMen[ii,])*(popM-popMSM)+as.numeric(resboot_SyphilisPrevMSM[ii,])*popMSM+
+            as.numeric(resboot_SyphilisPrevGeneWom[ii,])*(popF-popFSW)+as.numeric(resboot_SyphilisPrevFSW[ii,])*popFSW
         }))
 
         resboot_SyphilisPrevMPlusF <- t(sapply(1:nrow(resboot_SyphilisCasePrevMPlusF), function(ii)
@@ -1192,11 +1304,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           as.numeric(resboot_SyphilisCasePrevMPlusF[ii,])/(popM+popF)
         }))
 
-        resboot_SyphilisCasePrevMPlusF <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
-        {
-          as.numeric(resboot_SyphilisPrevM[ii,])*popM+as.numeric(resboot_SyphilisPrevF[ii,])*popF
-        }))
-
+        ###############################
         resboot_SyphilisCaseInciMPlusF <- t(sapply(1:nrow(resboot_SyphilisInciM), function(ii)
         {
           (as.numeric((1-resboot_SyphilisPrevM[ii,])*resboot_SyphilisInciM[ii,])*popM+
@@ -1208,6 +1316,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           as.numeric(resboot_SyphilisCaseInciMPlusF[ii,])/(popM+popF)
         }))
 
+
+        #########################################################################
         CI_SyphilisPrevMPlusF = apply(resboot_SyphilisPrevMPlusF,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
         CI_SyphilisCasePrevMPlusF = apply(resboot_SyphilisCasePrevMPlusF,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
 
@@ -1242,9 +1352,19 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         names(Out_syphilisPregWom)[1:4] <- tttKPs[1:4]
         names(Out_syphilisPregWom)[5:8] <- tttKPs[13:16]
 
+        Out_syphilisGeneMen <- Out_syphilisGeneMen[,c(1:5,7:9,6, 10:15)]
+        Out_syphilisGeneMen <- Out_syphilisGeneMen[,1:8]
+        names(Out_syphilisGeneMen)[1:4] <- tttKPs[1:4]
+        names(Out_syphilisGeneMen)[5:8] <- c("EstimatePrevGeneMen", "MedianPrevGeneMen", "PrevLB_2.5%GeneMen", "PrevUB_97.5%GeneMen")
+
+        Out_syphilisGeneWom <- Out_syphilisGeneWom[,c(1:5,7:9,6, 10:15)]
+        Out_syphilisGeneWom <- Out_syphilisGeneWom[,1:8]
+        names(Out_syphilisGeneWom)[1:4] <- tttKPs[1:4]
+        names(Out_syphilisGeneWom)[5:8] <- c("EstimatePrevGeneWom", "MedianPrevGeneWom", "PrevLB_2.5%GeneWom", "PrevUB_97.5%GeneWom")
+
         infoRun = data.frame(fitted=rep("Run", nrow(Out_syphilis)), DLastRun =as.character(rep(Sys.time(),nrow(Out_syphilis))))
         ctr_res <- list(Out_syphilis=Out_syphilis, infoRun=infoRun, CountryDataUse=CountryDataUse, CountryDataUse=CountryDataUse,
-                        Out_syphilisKPs=Out_syphilisKPs, Out_syphilisPregWom=Out_syphilisPregWom)
+                        Out_syphilisKPs=Out_syphilisKPs, Out_syphilisPregWom=Out_syphilisPregWom, Out_syphilisGeneWom=Out_syphilisGeneWom, Out_syphilisGeneMen=Out_syphilisGeneMen)
       } else
       {
         return(0)
@@ -1266,12 +1386,14 @@ fCountryAnalysis_glob <- function(Nboots=1000,
     {
       n_row2 = 1
       nligne_decal_titre = 1
-      printed_names <- c(ttt,tttEl,tttInc[1:12],tttIncEl, names(ctr_res$Out_syphilisKPs)[-c(1:4)], names(ctr_res$Out_syphilisPregWom)[-c(1:4)])
+      printed_names <- c(ttt,tttEl,tttInc[1:12],tttIncEl, names(ctr_res$Out_syphilisKPs)[-c(1:4)], names(ctr_res$Out_syphilisPregWom)[-c(1:4)],
+                         names(ctr_res$Out_syphilisGeneWom)[-c(1:4)], names(ctr_res$Out_syphilisGeneMen)[-c(1:4)])
       openxlsx::writeData(wb,sheet=Syphilis_Rbootstrap,as.data.frame(matrix(printed_names,nrow=1)), startRow = n_row2, startCol = 1, colNames = FALSE, rowNames = FALSE)
     }
 
     infoRun <- data.frame(fitted=rep("Run", nrow(ctr_res$Out_syphilis)), DLastRun =as.character(rep(Sys.time(),nrow(ctr_res$Out_syphilis))))
-    temp_data <- cbind(ctr_res$Out_syphilis, infoRun, ctr_res$Out_syphilisKPs[-c(1:4)], ctr_res$Out_syphilisPregWom[-c(1:4)])
+    temp_data <- cbind(ctr_res$Out_syphilis, infoRun, ctr_res$Out_syphilisKPs[-c(1:4)], ctr_res$Out_syphilisPregWom[-c(1:4)],
+                       ctr_res$Out_syphilisGeneWom[-c(1:4)], ctr_res$Out_syphilisGeneMen[-c(1:4)])
     openxlsx::writeData(wb, sheet=Syphilis_Rbootstrap, temp_data,colNames = FALSE,rowNames = FALSE,
                         startRow = 1+nligne_decal_titre+nrownum, startCol = 1) #ctr_res$Out_syphilis
     nrownum = nrownum+nsep+nrow(ctr_res$Out_syphilis)
@@ -3383,6 +3505,16 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   names(all_res)[names(all_res)=="PrevLB_2.5%PregWom"] = "PrevLB_PregWom"
   names(all_res)[names(all_res)=="PrevUB_97.5%PregWom"] = "PrevUB_PregWom"
 
+  names(all_res)[names(all_res)=="EstimatePrevGeneWom"] = "PrevEst_GeneWom"
+  names(all_res)[names(all_res)=="MedianPrevGeneWom"] = "PrevMed_GeneWom"
+  names(all_res)[names(all_res)=="PrevLB_2.5%GeneWom"] = "PrevLB_GeneWom"
+  names(all_res)[names(all_res)=="PrevUB_97.5%GeneWom"] = "PrevUB_GeneWom"
+
+  names(all_res)[names(all_res)=="EstimatePrevGeneMen"] = "PrevEst_GeneMen"
+  names(all_res)[names(all_res)=="MedianPrevGeneMen"] = "PrevMed_GeneMen"
+  names(all_res)[names(all_res)=="PrevLB_2.5%GeneMen"] = "PrevLB_GeneMen"
+  names(all_res)[names(all_res)=="PrevUB_97.5%GeneMen"] = "PrevUB_GeneMen"
+
   if(!(sex%in%c("both", "males", "females"))) return(NULL)
 
   #long_all_res <- data.frame()
@@ -3416,6 +3548,19 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                              BestFit = c(temp_long_ctr$CasePrevEst_MSM,temp_long_ctr$PrevEst_MSM),
                              Lower = c(temp_long_ctr$CasePrevLB_MSM,temp_long_ctr$PrevLB_MSM),
                              Upper = c(temp_long_ctr$CasePrevUB_MSM,temp_long_ctr$PrevUB_MSM)
+  )
+
+  long_ctr_genemen <- data.frame(Country = ctr,
+                             sex = "Males",
+                             population = "General-men",
+                             datatype = "Model",
+                             weight = 1,
+                             Year =c(temp_long_ctr$Year),
+                             indicator = rep(c("PrevalenceRate"), rep(nrow(temp_long_ctr),1)),
+                             Median = c(temp_long_ctr$PrevMed_GeneMen),
+                             BestFit = c(temp_long_ctr$PrevEst_GeneMen),
+                             Lower = c(temp_long_ctr$PrevLB_GeneMen),
+                             Upper = c(temp_long_ctr$PrevUB_GeneMen)
   )
 
   long_ctr_women <- data.frame(Country = ctr,
@@ -3455,6 +3600,20 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                              BestFit = c(temp_long_ctr$PrevEst_PregWom),
                              Lower = c(temp_long_ctr$PrevLB_PregWom),
                              Upper = c(temp_long_ctr$PrevUB_PregWom)
+  )
+
+
+  long_ctr_genewom <- data.frame(Country = ctr,
+                                 sex = "Females",
+                                 population = "General-women",
+                                 datatype = "Model",
+                                 weight = 1,
+                                 Year =c(temp_long_ctr$Year),
+                                 indicator = rep(c("PrevalenceRate"), rep(nrow(temp_long_ctr),1)),
+                                 Median = c(temp_long_ctr$PrevMed_GeneWom),
+                                 BestFit = c(temp_long_ctr$PrevEst_GeneWom),
+                                 Lower = c(temp_long_ctr$PrevLB_GeneWom),
+                                 Upper = c(temp_long_ctr$PrevUB_GeneWom)
   )
 
   long_ctr_both <- data.frame(Country = ctr,
@@ -3547,7 +3706,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   } else if(sex=="males")
   {
     temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, "All", "MSM")] <- "Males"
-    long_ctr <- rbind(long_ctr_men,long_ctr_msm,temp_all_res)
+    long_ctr <- rbind(long_ctr_men, long_ctr_msm, long_ctr_genemen, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Males")
 
     #long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "Blood donors"
@@ -3558,7 +3717,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   } else if (sex=="females")
   {
     temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneWom, rgp$PregWom, "All", "Pregnant women", "FSW")] <- "Females"
-    long_ctr <- rbind(long_ctr_women,long_ctr_fsw, long_ctr_pregwom, temp_all_res)
+    long_ctr <- rbind(long_ctr_women,long_ctr_fsw, long_ctr_pregwom, long_ctr_genewom, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Females")
     #long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "Pregnant women"
     #long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "Blood donors"
@@ -3584,10 +3743,10 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     temp_pop = NULL
     if(fn_population=="General-men" )
     {
-      temp_pop = c(rgp$GeneMen,"All")
+      temp_pop = c(rgp$GeneMen,"General-men")
     } else if(fn_population=="General-women" )
     {
-      temp_pop = c(rgp$GeneWom,"All")
+      temp_pop = c(rgp$GeneWom, "General-women")
     } else if(fn_population=="Pregnant women" )
     {
       temp_pop = c(rgp$PregWom,"Pregnant women")
@@ -3602,13 +3761,13 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     if(!is.null(temp_pop))
     {
       long_ctr <- subset(long_ctr,population%in%temp_pop)
-      if(fn_population=="General-men" )
-      {
-        long_ctr$population[long_ctr$population=="All"] <- "General-men"
-      } else if(fn_population=="General-women" )
-      {
-        long_ctr$population[long_ctr$population=="All"] <- "General-women"
-      }
+      #if(fn_population=="General-men" )
+      #{
+      #  long_ctr$population[long_ctr$population=="All"] <- "General-men"
+      #} else if(fn_population=="General-women" )
+      #{
+      #  long_ctr$population[long_ctr$population=="All"] <- "General-women"
+      #}
     }
   }# if(fn_population!="All")
 
