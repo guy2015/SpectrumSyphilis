@@ -815,7 +815,7 @@ get_precalcsCS <- function(namesinputfiles, f_DiagnosticTest)
                 if(is.na(values[i]))
                 {
                   maxidx <- which(!is.na(values))
-                  maxidx <- max(maxidx[maxidx>i])
+                  maxidx <- min(maxidx[maxidx>i])
                   val = values[i-1] + (values[maxidx]-values[i-1])*(years[i]-years[i-1])/(years[maxidx]-years[i-1])
                   values[i] = val
                 }#End if(is.na(values[i]))
