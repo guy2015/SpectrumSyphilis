@@ -3325,7 +3325,26 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
     openxlsx::writeData(wb,nnames[ii],data.matrix(temp_dat))
   }
 
+  #Simplimfied file for Jane
+  CongenDataOutJane <- CongenDataOut[,names(CongenDataOut)%in%c("Country","ISO code", "Year", "Live Births", "Still births", "Pregnancies", "Women with >= 1 ANC visit (%)",
+                                                                "Syphilis-tested (any ANC visit,%)", "EstimatePrevPregWom", "CS cases","CS / 100,000 live births",
+                                                                "ABO = CS, ANC women treated", "CS cases, ANC-screened women not treated", "ABO cases",
+                                                                "ABO, ANC-screened women not treated", "ABO, not seen in ANC", "ABO, ANC women not screened",
+                                                                "CS cases, not seen in ANC","CS cases, ANC women not screened", "CS cases, ANC-screened women not treated")]
+
+  wbsimple <- openxlsx::createWorkbook()
+  nnames <- c("CS Estimates", "CS Estimates long format", "Regional CS ABO", "Regional CS ABO long",
+              "Reg. Prev. and Inc. Est.", "Reg. Prev. and Inc Est. long")
+  for(ii in 1:6)
+  {
+    sheet <- openxlsx::addWorksheet(wbsimple,sheetName=nnames[ii])
+    temp_dat = results[[ii]]
+    if(ii ==1) temp_dat = CongenDataOutJane
+    openxlsx::writeData(wbsimple,nnames[ii],data.matrix(temp_dat))
+  }
+
   results$wb <- wb
+  results$wbsimple <- wbsimple
   class(results) <- "CSProj"
   return(results)
 }
