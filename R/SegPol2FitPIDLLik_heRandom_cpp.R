@@ -3728,6 +3728,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     long_ctr <- rbind(long_ctr_men, long_ctr_msm, long_ctr_genemen, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Males")
 
+    mtitle <- "Syphilis prevalence trend among adults males (15-49 y)"
     #long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "Blood donors"
     #long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
     #long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
@@ -3763,30 +3764,28 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     if(fn_population=="General-men" )
     {
       temp_pop = c(rgp$GeneMen,"General-men")
+      mtitle <- "Syphilis prevalence trend among General-men (15-49 y)"
     } else if(fn_population=="General-women" )
     {
       temp_pop = c(rgp$GeneWom, "General-women")
+      mtitle <- "Syphilis prevalence trend among General-women (15-49 y)"
     } else if(fn_population=="Pregnant women" )
     {
       temp_pop = c(rgp$PregWom,"Pregnant women")
+      mtitle <- "Syphilis prevalence trend among pregnant women (15-49 y)"
     } else if(fn_population=="FSW" )
     {
       temp_pop = "FSW"
+      mtitle <- "Syphilis prevalence trend among Females Sex Workers (FSW)"
     } else if(fn_population=="MSM" )
     {
       temp_pop = "MSM"
+      mtitle <- "Syphilis prevalence trend among Men who have Sex with Men (MSM)"
     }
 
     if(!is.null(temp_pop))
     {
       long_ctr <- subset(long_ctr,population%in%temp_pop)
-      #if(fn_population=="General-men" )
-      #{
-      #  long_ctr$population[long_ctr$population=="All"] <- "General-men"
-      #} else if(fn_population=="General-women" )
-      #{
-      #  long_ctr$population[long_ctr$population=="All"] <- "General-women"
-      #}
     }
   }# if(fn_population!="All")
 
