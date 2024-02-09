@@ -3696,52 +3696,23 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   temp_all_res$sex[temp_all_res$population=="FSW"] <- "Females"
   temp_all_res$sex[temp_all_res$population=="Other"] <- "BothSexes"
 
-
-  #temp_all_res$population[temp_all_res$population%in%c("ANC Routine screening","ANC Survey")] <- "Pregnant women/General-women"
-  #temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men")] <- "Blood donors/General-men"
-  #temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Women")] <- "Blood donors/General-women"
-  #temp_all_res$population[temp_all_res$population%in%c("BloodDonor Screening Men + Women")] <- "Blood donors/General-women/General-men"
-  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men")] <- "General-men"
-  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men+Women")] <- "General-women/General-men"
-  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Men + Women")] <- "General-women/General-men"
-  #temp_all_res$population[temp_all_res$population%in%c("Survey LowRisk Women")] <- "General-women"
-  #temp_all_res <- temp_all_res[temp_all_res$population%in%c("Pregnant women/General-women","Blood donors/General-men",
-  #                                               "Blood donors/General-women","Blood donors/General-women/General-men",
-  #                                               "General-men","General-women/General-men","General-women", "FSW", "MSM"),]
-
   long_ctr <- data.frame();
   mtitle <- "Syphilis prevalence trend among adults (15-49 y)"
 
   if(sex=="both")
   {
     long_ctr <- rbind(long_ctr_both, temp_all_res)
-    #long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "General-women"
-    #long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "General-men"
-    #long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "General-women"
-    #long_ctr$population[long_ctr$population=="Blood donors/General-women/General-men"] <- "Blood donors"
-    #long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
-    #long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
-    #long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
   } else if(sex=="males")
   {
     temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, "All", "MSM")] <- "Males"
     long_ctr <- rbind(long_ctr_men, long_ctr_msm, long_ctr_genemen, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Males")
-
-    mtitle <- "Syphilis prevalence trend among adults males (15-49 y)"
-    #long_ctr$population[long_ctr$population=="Blood donors/General-men"] <- "Blood donors"
-    #long_ctr$population[long_ctr$population=="General-men"] <- "General-men"
-    #long_ctr$population[long_ctr$population=="General-women/General-men"] <- "General-women/General-men"
-
     mtitle <- "Syphilis prevalence trend among males (15-49 y)"
   } else if (sex=="females")
   {
     temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneWom, rgp$PregWom, "All", "Pregnant women", "FSW")] <- "Females"
     long_ctr <- rbind(long_ctr_women,long_ctr_fsw, long_ctr_pregwom, long_ctr_genewom, temp_all_res)
     long_ctr <- subset(long_ctr, sex=="Females")
-    #long_ctr$population[long_ctr$population=="Pregnant women/General-women"] <- "Pregnant women"
-    #long_ctr$population[long_ctr$population=="Blood donors/General-women"] <- "Blood donors"
-    #long_ctr$population[long_ctr$population=="General-women"] <- "General-women"
     mtitle <- "Syphilis prevalence trend among females (15-49 y)"
   }
 
@@ -3756,8 +3727,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                                                           "Blood donors/General-women","Blood donors/General-women/General-men",
                                                           "General-men","General-women/General-men","General-women", "Pregnant women"))
 
-
-
+  show_chart <- TRUE
   if(fn_population!="All")
   {
     temp_pop = NULL
@@ -3773,6 +3743,10 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     {
       temp_pop = c(rgp$PregWom,"Pregnant women")
       mtitle <- "Syphilis prevalence trend among pregnant women (15-49 y)"
+      if(sum(temp_all_res$population%in%c("ANC Routine screening","ANC Routine screening"))==0)
+      {
+        show_chart <- FALSE
+      }
     } else if(fn_population=="FSW" )
     {
       temp_pop = "FSW"
@@ -3787,7 +3761,10 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     {
       long_ctr <- subset(long_ctr,population%in%temp_pop)
     }
-  }# if(fn_population!="All")
+  } else
+  {
+    long_ctr <- subset(long_ctr,!population%in%c("FSW","Pregnant women","MSM", "General-women","General-men"))
+  }
 
   if(fn_population=="None")
   {
@@ -3795,6 +3772,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   }
 
   if(nrow(long_ctr)==0) return(NULL)
+  if(!show_chart) return(NULL)
 
   long_ctr$weight <- ifelse(long_ctr$weight==1,16,1)
   long_ctr$weight <- factor(long_ctr$weight, levels=c("16","1"))
@@ -4179,6 +4157,9 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
   dff_a$mshape[dff_a$mgroup%in%c("Treated (%), Reported","Syphilis-tested (1st ANC, %), Reported", "Women with >= 1 ANC visit (%), Reported",
                                  "ANC Routine screening","ANC Survey")] = "*"
 
+  npregwomdata <- sum(dff_a$mgroup%in%c("ANC Routine screening","ANC Survey"))
+  if(npregwomdata==0) return(NULL)
+
   dff_ap <- subset(dff_a, indicator%in%c("ANC-based syphilis\n treatment","ANC-based screening","ANC-1"))
   dff_ap$indicator <- factor(dff_ap$indicator,levels=c("ANC-1","ANC-based screening","ANC-based syphilis\n treatment"))
 
@@ -4288,12 +4269,8 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
     geom_bar(aes(x=Year, y=value),stat="identity")+
     facet_grid(cols=vars(indicator))+
     labs(title = "", y = "CS case rate\n per 100,000 live births",x="")+
-    #scale_y_continuous(name = NULL, sec.axis = sec_axis(~., name = "CS case rate\n per 100,000 live births")) +
     scale_x_discrete(breaks = f_bks)+
     scale_y_continuous(position = "right")+
-    #scale_y_continuous(sec.axis = sec_axis(~./max(dff_b$value)),label=scales::percent) + #scale_y_continuous(sec.axis = sec_axis(~./max(dff_b$value),label=scales::percent)) +
-    #scale_y_continuous(sec.axis = sec_axis(~.),label=scales::percent) + #scale_y_continuous(sec.axis = sec_axis(~./max(dff_b$value),label=scales::percent)) +
-    #ylim(0,NA)+
     theme(
       axis.title.y = element_text(size = rel(1.2)),
       axis.title.x = element_text(size = rel(1.2)),
@@ -4301,8 +4278,6 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
       panel.grid.major = element_line(linewidth = 0.5, colour = "grey",linetype = 2),
       panel.ontop = TRUE,
       legend.position="none",
-      #legend.position="bottom",
-      #legend.position="top",
       axis.line = element_line(linewidth = 1, colour = "grey"),
       panel.grid.minor = element_line(linewidth = 0.25, linetype = 2,
                                       colour = "grey"),
