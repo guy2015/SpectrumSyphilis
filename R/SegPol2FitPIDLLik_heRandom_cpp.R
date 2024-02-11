@@ -3881,7 +3881,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
       long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="MSM"))
     } else (sex=="both")
     {
-      long_ctr <- rbind(long_ctr, temp_all_res,population=="MSM")
+      long_ctr <- rbind(long_ctr, temp_all_res)
     }
   }
 
