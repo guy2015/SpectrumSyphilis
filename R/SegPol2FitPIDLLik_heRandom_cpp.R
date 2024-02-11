@@ -532,7 +532,7 @@ GetLROR <- function(dat, L_surveytypes)
   par1 <- optim(par1,fn)$par
 
   res <- exp(par1)
-  names(res) <- c("PregWom","GeneWom","GeneMen")
+  names(res) <- c("PregWom","GeneWom","GeneMen", "BloodDo")
   res
 }
 
@@ -3516,7 +3516,6 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
 
   mout_file <- syphfits$wb;
   SyphData <- syphfits$SyphData
-  #df=xCSProj$LongCongenDataOutForPlots
   ctr <- ctr_iso3
 
   all_res <- openxlsx::read.xlsx(mout_file,sheet="SYPH_RBootstrap_All")
