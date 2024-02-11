@@ -3813,7 +3813,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
 
   if(sex=="both")
   {
-    long_ctr <- rbind(long_ctr_both, temp_all_res)
+    long_ctr <- rbind(long_ctr_both, temp_all_res, long_ctr_blooddon)
   } else if(sex=="males")
   {
     temp_all_res$sex[temp_all_res$population%in%c(rgp$GeneMen, "All", "MSM")] <- "Males"
@@ -3874,7 +3874,6 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                    "Blood donors", "Blood donors/General-women","Blood donors/General-women/General-men")
       mtitle <- "Syphilis prevalence trend among Blood Donors"
 
-      mtitle <- "Syphilis prevalence trend among pregnant women (15-49 y)"
       if(sum(temp_all_res$population%in%temp_pop)==0)
       {
         show_chart <- FALSE
