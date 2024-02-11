@@ -3876,10 +3876,10 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     if(sex=="females")
     {
       long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="FSW"))
-    } else (sex=="males")
+    } else if (sex=="males")
     {
       long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="MSM"))
-    } else (sex=="both")
+    } else if (sex=="both")
     {
       long_ctr <- rbind(long_ctr, temp_all_res)
     }
