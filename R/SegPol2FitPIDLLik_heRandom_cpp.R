@@ -1017,7 +1017,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilis$CaseInciEstMPlusF = MtoFRatio*Out_syphilis$InciEstF
 
         ##
-        if(length(idxMSM)>=3)
+        if(length(idxMSM)>=2)
         {
           temp_MSM <- tabb_all[idxMSM,]
           modMSM <- glm(Prevalence/100~Year, data=temp_MSM, family = quasibinomial(link="logit"))
@@ -1040,7 +1040,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         }
         Out_syphilisKPs$CasePrevEstMSM <- Out_syphilisKPs$PrevEstMSM
 
-        if(length(idxFSW)>=3)
+        if(length(idxFSW)>=2)
         {
           temp_FSW <- tabb_all[idxFSW,]
 
@@ -1151,8 +1151,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           resboot_SyphilisInciM[count,] = zzz*resboot_SyphilisInciF[count,]
 
           numrep <- length(resboot_SyphilisInciM[count,])
-
-          if(length(idxMSM)>=3)
+          if(length(idxMSM)>=2)
           {
             tabb_all$p[idxMSM] = tabb_all$estim[idxMSM]+tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
             tabb_all$p[idxMSM] = exp(tabb_all$p[idxMSM])/(1+exp(tabb_all$p[idxMSM]))
@@ -1184,7 +1183,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
             resboot_SyphilisPrevMSM[count,] <- expit(-log(LRtoHRPOR$MtoMSM$POR+rnorm(numrep,0,LRtoHRPOR$MtoMSM$sdlogPOR)) + logit(resboot_SyphilisPrevM[count,]))
           }
 
-          if(length(idxFSW)>=3)
+          if(length(idxFSW)>=2)
           {
             tabb_all$p[idxFSW] = tabb_all$estim[idxFSW]+tabb_all$error[idxFSW][ERR_SAMP(1:length(tabb_all$error[idxFSW]))]
             tabb_all$p[idxFSW] = exp(tabb_all$p[idxFSW])/(1+exp(tabb_all$p[idxFSW]))
