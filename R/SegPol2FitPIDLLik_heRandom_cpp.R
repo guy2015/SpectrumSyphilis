@@ -757,7 +757,6 @@ fCountryAnalysis_glob <- function(Nboots=1000,
   registerDoParallel(cluster)
 
   all_res <- foreach(lc = lcountry)%dopar%{
-    #all_res <- lapply(lcountry, function(lc){#foreach(lc = lcountry)%dopar%{
     require(SpectrumSyphilis)
     CountryModel <- "PID+Spline"
 
@@ -1346,7 +1345,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         ##############################################################################
         #Males
-        Out_syphilis$CasePrevEstM <- Out_syphilis$CasePrevEstM+Out_syphilisKPs$CasePrevEstMSM
+        Out_syphilis$CasePrevEstM <- Out_syphilisGeneMen$CasePrevEstM + Out_syphilisKPs$CasePrevEstMSM
         Out_syphilis$PrevEstM <- Out_syphilis$CasePrevEstM/popM
 
         resboot_SyphilisCasePrevM <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
@@ -1359,11 +1358,13 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           as.numeric(resboot_SyphilisCasePrevM[ii,])/(popM)
         }))
 
-
+        CI_SyphilisPrevM = apply(resboot_SyphilisPrevM,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
+        Out_syphilis$PrevEstM_Med <- CI_SyphilisPrevM[2,]
+        Out_syphilis$PrevEstM_LoB <- CI_SyphilisPrevM[1,]
+        Out_syphilis$PrevEstM_UpB <- CI_SyphilisPrevM[3,]
         #Females
-        Out_syphilis$CasePrevEstF <- Out_syphilis$CasePrevEstF+Out_syphilisKPs$CasePrevEstFSW
+        Out_syphilis$CasePrevEstF <- Out_syphilisGeneWom$CasePrevEstF + Out_syphilisKPs$CasePrevEstFSW
         Out_syphilis$PrevEstF <- Out_syphilis$CasePrevEstF/popF
-
 
         resboot_SyphilisCasePrevF <- t(sapply(1:nrow(resboot_SyphilisPrevF), function(ii)
         {
@@ -1375,6 +1376,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           as.numeric(resboot_SyphilisCasePrevF[ii,])/(popF)
         }))
 
+        CI_SyphilisPrevF = apply(resboot_SyphilisPrevF,2,function(x) quantile(x,c(.025,.5,.975),na.rm=T))
+        Out_syphilis$PrevEstF_Med <- CI_SyphilisPrevF[2,]
+        Out_syphilis$PrevEstF_LoB <- CI_SyphilisPrevF[1,]
+        Out_syphilis$PrevEstF_UpB <- CI_SyphilisPrevF[3,]
 
         #BothSexes
         Out_syphilis$CasePrevEstMPlusF <- Out_syphilis$CasePrevEstF + Out_syphilis$CasePrevEstM
@@ -1784,24 +1789,7 @@ RunFitSyphilis1 <- function(name.data.file,
                                                  "BloodDonor Screening Men", "BloodDonor Screening Men + Women",
                                                  "BloodDonor Screening Men+Women","FSW", "MSM"),]
 
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("ANC Routine screening","ANC Survey")] <- "Pregnant women/General-women"
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("BloodDonor Screening Men")] <- "Blood donors/General-men"
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("BloodDonor Screening Women")] <- "Blood donors/General-women"
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("BloodDonor Screening Men + Women")] <- "Blood donors/General-women/General-men"
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Men")] <- "General-men"
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Men+Women")] <- "General-women/General-men"
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Men + Women")] <- "General-women/General-men"
-  #SyphData$"Data type"[SyphData$"Data type"%in%c("Survey LowRisk Women")] <- "General-women"
-  #SyphData <- SyphData[SyphData$"Data type"%in%c("Pregnant women/General-women","Blood donors/General-men",
-  #                                                     "Blood donors/General-women","Blood donors/General-women/General-men",
-  #                                                     "General-men","General-women/General-men","General-women", "FSW", "MSM"),]
-
-
   filter_survey_mod <- filter_survey
-  #if(!is.null(filter_survey))
-  #{
-  #  filter_survey_mod[which(!(filter_survey_mod%in%c("ANC Survey","ANC Routine screening","MSM", "FSW")))] <- "Other"
-  #}
 
   suppressWarnings(SyphData$Prevalence <- as.numeric(as.character(SyphData$Prevalence)))
   suppressWarnings(SyphData$`N positive` <- as.numeric(as.character(SyphData$`N positive`)))
@@ -3885,6 +3873,16 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   } else
   {
     long_ctr <- subset(long_ctr,!population%in%c("FSW","Pregnant women","MSM", "General-women","General-men"))
+    if(sex=="females")
+    {
+      long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="FSW"))
+    } else (sex=="males")
+    {
+      long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="MSM"))
+    } else (sex=="both")
+    {
+      long_ctr <- rbind(long_ctr, temp_all_res,population=="MSM")
+    }
   }
 
   if(fn_population=="None")
