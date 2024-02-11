@@ -434,29 +434,6 @@ BestFit2PIDLLik_Random <- function(vX=obs_time,vY=obs_prev,vW=obs_weig, xResBest
   list(All_Pars = interm, recov=frecov,gxmax=gxmax,funcestprojprev=funcestprojprev, scfrac=scfrac_in, funcestprojinci=funcestprojinci,frestrknots=restrknots_in, data=list(vX=vX,vY=vY,vW=vW))
 }
 
-# GetLROR <- function(dat, L_surveytypes)
-# {
-#   fn <- function(par)
-#   {
-#     X <- exp(par)
-#     projprev <- numeric()
-#     projprev[dat$Data_type%in%L_surveytypes$PregWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1])
-#     projprev[dat$Data_type%in%L_surveytypes$GeneWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[2]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[2])
-#     projprev[dat$Data_type%in%L_surveytypes$GeneMen] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3])
-#
-#     nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
-#     nnloss
-#   }
-#
-#   par0 <- rep(0,3)
-#   opt0 <- optim(par0,fn)
-#   opt1 <- optim(opt0$par,fn, method="BFGS")
-#
-#   res <- exp(opt1$par)
-#   names(res) <- c("PregWom","GeneWom","GeneMen")
-#   res
-# }
-
 GetLROR <- function(dat, L_surveytypes)
 {
   fn <- function(par)
@@ -757,6 +734,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
   registerDoParallel(cluster)
 
   all_res <- foreach(lc = lcountry)%dopar%{
+   #{
     require(SpectrumSyphilis)
     CountryModel <- "PID+Spline"
 
@@ -984,6 +962,33 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
       all_estMSM <- all_estFSW <- NULL
 
+      maxYPregWom <- maxYGeneWom <- maxYGeneMen <- maxYBloodDo <- floor(max(tab$Year) + FB_ProjMax_F)
+      minYPregWom <- minYGeneWom <- minYGeneMen <- minYBloodDo <- ceiling(min(tab$Year) - FB_ProjMax_B)
+
+      if(sum(tab$Data_type%in%fn_filter_survey_LR$PregWom)>=1)
+      {
+        maxYPregWom <-  floor(max(tab$Year[tab$Data_type%in%fn_filter_survey_LR$PregWom]) + FB_ProjMax_F)
+        minYPregWom <- ceiling(min(tab$Year[tab$Data_type%in%fn_filter_survey_LR$PregWom]) - FB_ProjMax_B)
+      }
+
+      if(sum(tab$Data_type%in%fn_filter_survey_LR$GeneWom)>=1)
+      {
+        maxYGeneWom <-  floor(max(tab$Year[tab$Data_type%in%fn_filter_survey_LR$GeneWom]) + FB_ProjMax_F)
+        minYGeneWom <- ceiling(min(tab$Year[tab$Data_type%in%fn_filter_survey_LR$GeneWom]) - FB_ProjMax_B)
+      }
+
+      if(sum(tab$Data_type%in%fn_filter_survey_LR$GeneMen)>=1)
+      {
+        maxYGeneMen <-  floor(max(tab$Year[tab$Data_type%in%fn_filter_survey_LR$GeneMen]) + FB_ProjMax_F)
+        minYGeneMen <- ceiling(min(tab$Year[tab$Data_type%in%fn_filter_survey_LR$GeneMen]) - FB_ProjMax_B)
+      }
+
+      if(sum(tab$Data_type%in%fn_filter_survey_LR$BloodDo)>=1)
+      {
+        maxYBloodDo <-  floor(max(tab$Year[tab$Data_type%in%fn_filter_survey_LR$BloodDo]) + FB_ProjMax_F)
+        minYBloodDo <- ceiling(min(tab$Year[tab$Data_type%in%fn_filter_survey_LR$BloodDo]) - FB_ProjMax_B)
+      }
+
       if(is.list(gmodestim0PID))
       {
         tab$estim = gmodestim0PID$funcestprojprev(scyears) #pred_glmfit(Years=tab$Year,res)
@@ -1000,6 +1005,26 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilisPregWom$PrevEstPregWom = temp_prev*prevOR['PregWom']/(1-temp_prev+temp_prev*prevOR['PregWom'])
         Out_syphilisBloodDo$PrevEstBloodDo = temp_prev*prevOR['BloodDo']/(1-temp_prev+temp_prev*prevOR['BloodDo'])
 
+        #Forward and Backward extrapolation constraints
+        Out_syphilis$PrevEstF[Out_syphilis$year>=maxYGeneWom] = mean(Out_syphilis$PrevEstF[Out_syphilis$year==maxYGeneWom])
+        Out_syphilis$PrevEstF[Out_syphilis$year<=minYGeneWom] = mean(Out_syphilis$PrevEstF[Out_syphilis$year==minYGeneWom])
+
+        Out_syphilisGeneWom$PrevEstF[Out_syphilisGeneWom$year>=maxYGeneWom] = mean(Out_syphilisGeneWom$PrevEstF[Out_syphilisGeneWom$year==maxYGeneWom])
+        Out_syphilisGeneWom$PrevEstF[Out_syphilisGeneWom$year<=minYGeneWom] = mean(Out_syphilisGeneWom$PrevEstF[Out_syphilisGeneWom$year==minYGeneWom])
+
+        Out_syphilisPregWom$PrevEstPregWom[Out_syphilisPregWom$year>=maxYPregWom] = mean(Out_syphilisPregWom$PrevEstPregWom[Out_syphilisPregWom$year==maxYPregWom])
+        Out_syphilisPregWom$PrevEstPregWom[Out_syphilisPregWom$year<=minYPregWom] = mean(Out_syphilisPregWom$PrevEstPregWom[Out_syphilisPregWom$year==minYPregWom])
+
+        Out_syphilis$PrevEstM[Out_syphilis$year>=maxYGeneMen] = mean(Out_syphilis$PrevEstM[Out_syphilis$year==maxYGeneMen])
+        Out_syphilis$PrevEstM[Out_syphilis$year<=minYGeneMen] = mean(Out_syphilis$PrevEstM[Out_syphilis$year==minYGeneMen])
+
+        Out_syphilisGeneMen$PrevEstM[Out_syphilisGeneMen$year>=maxYGeneMen] = mean(Out_syphilisGeneMen$PrevEstM[Out_syphilisGeneMen$year==maxYGeneMen])
+        Out_syphilisGeneMen$PrevEstM[Out_syphilisGeneMen$year<=minYGeneMen] = mean(Out_syphilisGeneMen$PrevEstM[Out_syphilisGeneMen$year==minYGeneMen])
+
+        Out_syphilisBloodDo$PrevEstBloodDo[Out_syphilisBloodDo$year>=maxYBloodDo] = mean(Out_syphilisBloodDo$PrevEstBloodDo[Out_syphilisBloodDo$year==maxYBloodDo])
+        Out_syphilisBloodDo$PrevEstBloodDo[Out_syphilisBloodDo$year<=minYBloodDo] = mean(Out_syphilisBloodDo$PrevEstBloodDo[Out_syphilisBloodDo$year==minYBloodDo])
+
+        ##End Forward and Backward extrapolation constraints
         Out_syphilisPregWom$CasePrevEstPregWom = Out_syphilisPregWom$PrevEstPregWom
         Out_syphilisBloodDo$CasePrevEstBloodDo = Out_syphilisBloodDo$PrevEstBloodDo
         #
@@ -1130,6 +1155,20 @@ fCountryAnalysis_glob <- function(Nboots=1000,
               resboot_SyphilisPrevPregWom[count,] = temp_prev.boot*prevOR.boot["PregWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["PregWom"])
 
               resboot_SyphilisPrevBloodDo[count,] = temp_prev.boot*prevOR.boot["BloodDo"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["BloodDo"])
+
+              #Forward and Backward extrapolation constraints
+              resboot_SyphilisPrevGeneWom[count,Out_syphilisGeneWom$year>=maxYGeneWom] = mean(resboot_SyphilisPrevGeneWom[count,Out_syphilisGeneWom$year==maxYGeneWom])
+              resboot_SyphilisPrevGeneWom[count,Out_syphilisGeneWom$year<=minYGeneWom] = mean(resboot_SyphilisPrevGeneWom[count,Out_syphilisGeneWom$year==minYGeneWom])
+
+              resboot_SyphilisPrevPregWom[count,Out_syphilisPregWom$year>=maxYPregWom] = mean(resboot_SyphilisPrevPregWom[count,Out_syphilisPregWom$year==maxYPregWom])
+              resboot_SyphilisPrevPregWom[count,Out_syphilisPregWom$year<=minYPregWom] = mean(resboot_SyphilisPrevPregWom[count,Out_syphilisPregWom$year==minYPregWom])
+
+              resboot_SyphilisPrevGeneMen[count,Out_syphilisGeneMen$year>=maxYGeneMen] = mean(resboot_SyphilisPrevGeneMen[count,Out_syphilisGeneMen$year==maxYGeneMen])
+              resboot_SyphilisPrevGeneMen[count,Out_syphilisGeneMen$year<=minYGeneMen] = mean(resboot_SyphilisPrevGeneMen[count,Out_syphilisGeneMen$year==minYGeneMen])
+
+              resboot_SyphilisPrevBloodDo[count,Out_syphilisBloodDo$year>=maxYBloodDo] = mean(resboot_SyphilisPrevBloodDo[count,Out_syphilisBloodDo$year==maxYBloodDo])
+              resboot_SyphilisPrevBloodDo[count,Out_syphilisBloodDo$year<=minYBloodDo] = mean(resboot_SyphilisPrevBloodDo[count,Out_syphilisBloodDo$year==minYBloodDo])
+              ##End Forward and Backward extrapolation constraints
               break;
             } else
             {
@@ -1448,12 +1487,12 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         names(Out_syphilisPregWom)[5:8] <- tttKPs[13:16]
 
         Out_syphilisGeneMen <- Out_syphilisGeneMen[,c(1:5,7:9,6, 10:15)]
-        Out_syphilisGeneMen <- Out_syphilisGeneMen[,1:8]
+        Out_syphilisGeneMen <- Out_syphilisGeneMen[,c(1:5,13:15)]
         names(Out_syphilisGeneMen)[1:4] <- tttKPs[1:4]
         names(Out_syphilisGeneMen)[5:8] <- c("EstimatePrevGeneMen", "MedianPrevGeneMen", "PrevLB_2.5%GeneMen", "PrevUB_97.5%GeneMen")
 
         Out_syphilisGeneWom <- Out_syphilisGeneWom[,c(1:5,7:9,6, 10:15)]
-        Out_syphilisGeneWom <- Out_syphilisGeneWom[,1:8]
+        Out_syphilisGeneWom <- Out_syphilisGeneWom[,c(1:5,13:15)]#Out_syphilisGeneWom <- Out_syphilisGeneWom[,1:8]
         names(Out_syphilisGeneWom)[1:4] <- tttKPs[1:4]
         names(Out_syphilisGeneWom)[5:8] <- c("EstimatePrevGeneWom", "MedianPrevGeneWom", "PrevLB_2.5%GeneWom", "PrevUB_97.5%GeneWom")
 
