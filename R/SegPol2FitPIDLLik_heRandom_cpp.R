@@ -1058,6 +1058,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
           tabb_all$estim[idxMSM] = coef(modMSM)[1] +coef(modMSM)[2]*tabb_all$Year[idxMSM] #pred_glmfit(Years=tab$Year,res)
           tabb_all$error[idxMSM] = log(tabb_all$Npos[idxMSM]/(tabb_all$N_tested[idxMSM]-tabb_all$Npos[idxMSM]))-tabb_all$estim[idxMSM]#res$residuals
+        } else if(length(idxMSM)==1)
+        {
+          temp_MSM <- tabb_all[idxMSM,]
+          Out_syphilisKPs$PrevEstMSM <- temp_MSM$p[1]
         } else
         {
           Out_syphilisKPs$PrevEstMSM <- expit(-log(LRtoHRPOR$MtoMSM$POR) + logit(Out_syphilis$PrevEstM))
@@ -1082,6 +1086,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
           tabb_all$estim[idxFSW] = coef(modFSW)[1] +coef(modFSW)[2]*tabb_all$Year[idxFSW] #pred_glmfit(Years=tab$Year,res)
           tabb_all$error[idxFSW] = log(tabb_all$Npos[idxFSW]/(tabb_all$N_tested[idxFSW]-tabb_all$Npos[idxFSW]))-tabb_all$estim[idxFSW]#res$residuals
+        } else if(length(idxFSW)==1)
+        {
+          temp_FSW <- tabb_all[idxFSW,]
+          Out_syphilisKPs$PrevEstFSW <- temp_FSW$p[1]
         } else
         {
           Out_syphilisKPs$PrevEstFSW <- expit(-log(LRtoHRPOR$FtoFSW$POR) + logit(Out_syphilis$PrevEstF))
@@ -1191,7 +1199,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           numrep <- length(resboot_SyphilisInciM[count,])
           if(length(idxMSM)>=2)
           {
-            tabb_all$p[idxMSM] = tabb_all$estim[idxMSM]+tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
+            tabb_all$p[idxMSM] = tabb_all$estim[idxMSM]+ sample(tabb_all$error[idxMSM], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
             tabb_all$p[idxMSM] = exp(tabb_all$p[idxMSM])/(1+exp(tabb_all$p[idxMSM]))
 
             tabb_all$alpha[idxMSM] = tabb_all$p[idxMSM]*(tabb_all$N_tested[idxMSM]-1)
@@ -1216,14 +1224,24 @@ fCountryAnalysis_glob <- function(Nboots=1000,
             all_estMSM$prev <- expit(coef(modMSM)[1]+coef(modMSM)[2]*(Vect_Year_Pred_MSM))
 
             resboot_SyphilisPrevMSM[count,] <- all_estMSM$prev
-          } else
+          } else if(length(idxMSM)==1)
+          {
+            tabb_all$alpha[idxMSM] = tabb_all$p[idxMSM]*(tabb_all$N_tested[idxMSM]-1)
+            tabb_all$beta[idxMSM] = (1-tabb_all$p[idxMSM])*(tabb_all$N_tested[idxMSM]-1)
+            tabb_all$Npos[idxMSM] = (qbeta(rep(u,length(tabb_all$Npos[idxMSM])),tabb_all$alpha[idxMSM],tabb_all$beta[idxMSM])*tabb_all$N_tested[idxMSM])
+
+            tabb_all$p[idxMSM] = tabb_all$Npos[idxMSM]/tabb_all$N_tested[idxMSM]*runif(length(tabb_all$Npos[idxMSM]),0.75,1.25);
+
+            temp_MSM <- tabb_all[idxMSM,]
+            resboot_SyphilisPrevMSM[count,] <- temp_MSM$p[1]
+          }else
           {
             resboot_SyphilisPrevMSM[count,] <- expit(-log(LRtoHRPOR$MtoMSM$POR+rnorm(numrep,0,LRtoHRPOR$MtoMSM$sdlogPOR)) + logit(resboot_SyphilisPrevM[count,]))
           }
 
           if(length(idxFSW)>=2)
           {
-            tabb_all$p[idxFSW] = tabb_all$estim[idxFSW]+tabb_all$error[idxFSW][ERR_SAMP(1:length(tabb_all$error[idxFSW]))]
+            tabb_all$p[idxFSW] = tabb_all$estim[idxFSW]+ sample(tabb_all$error[idxFSW], replace=T)#tabb_all$error[idxFSW][ERR_SAMP(1:length(tabb_all$error[idxFSW]))]
             tabb_all$p[idxFSW] = exp(tabb_all$p[idxFSW])/(1+exp(tabb_all$p[idxFSW]))
 
             tabb_all$alpha[idxFSW] = tabb_all$p[idxFSW]*(tabb_all$N_tested[idxFSW]-1)
@@ -1247,6 +1265,16 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
             all_estFSW$prev <- expit(coef(modFSW)[1]+coef(modFSW)[2]*(Vect_Year_Pred_FSW))
             resboot_SyphilisPrevFSW[count,] <- all_estFSW$prev
+          } else if(length(idxFSW)==1)
+          {
+            tabb_all$alpha[idxFSW] = tabb_all$p[idxFSW]*(tabb_all$N_tested[idxFSW]-1)
+            tabb_all$beta[idxFSW] = (1-tabb_all$p[idxFSW])*(tabb_all$N_tested[idxFSW]-1)
+            tabb_all$Npos[idxFSW] = (qbeta(rep(u,length(tabb_all$Npos[idxFSW])),tabb_all$alpha[idxFSW],tabb_all$beta[idxFSW])*tabb_all$N_tested[idxFSW])
+
+            tabb_all$p[idxFSW] = tabb_all$Npos[idxFSW]/tabb_all$N_tested[idxFSW]*runif(length(tabb_all$Npos[idxFSW]),0.75,1.25);
+
+            temp_FSW <- tabb_all[idxFSW,]
+            resboot_SyphilisPrevFSW[count,] <- temp_FSW$p[1]
           } else
           {
             resboot_SyphilisPrevFSW[count,] <- expit(-log(LRtoHRPOR$FtoFSW$POR+rnorm(numrep,0,LRtoHRPOR$FtoFSW$sdlogPOR)) + logit(resboot_SyphilisPrevF[count,]))
@@ -1638,7 +1666,6 @@ RunFitSyphilis0 <- function(name.data.file,
     if(!is.na(SyphData$DX_Code[ii]))
     {
       hr_adj <- ifelse(any(LowRisk==SyphData$'Data type'[ii]),high_risk_adj,1);
-      #adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
       adj = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
       res = SyphData$Prevalence[ii]*adj*hr_adj
     }
@@ -1649,7 +1676,6 @@ RunFitSyphilis0 <- function(name.data.file,
     res = NA
     if(!is.na(SyphData$DX_Code[ii]))
     {
-      #res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==max(SyphData$DX_Code[ii],1))];
       res = DiagnosticTest$Adjustment_factor[which(DiagnosticTest$DX_code==SyphData$DX_Code[ii])];
     }
     res
@@ -3543,6 +3569,9 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
 
   mout_file <- syphfits$wb;
   SyphData <- syphfits$SyphData
+  if(fn_population=="None_Unadjusted"){
+    SyphData$Prevalence <- SyphData$Prevalence/SyphData$DiagTestAdjusteFactor
+  }
   ctr <- ctr_iso3
 
   all_res <- openxlsx::read.xlsx(mout_file,sheet="SYPH_RBootstrap_All")
@@ -3924,7 +3953,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     }
   }
 
-  if(fn_population=="None")
+  if(fn_population%in%c("None","None_Unadjusted"))
   {
     long_ctr <- subset(long_ctr,datatype%in%"Reported")
   }
@@ -4000,7 +4029,6 @@ plot_ctr_SyphIncCases <- function(syphfits, ctr_iso3, sex="both", years= 2010:20
 
   mout_file <- syphfits$wb;
   SyphData <- syphfits$SyphData
-  #df=xCSProj$LongCongenDataOutForPlots
   ctr <- ctr_iso3
 
   all_res <- openxlsx::read.xlsx(mout_file,sheet="SYPH_RBootstrap_All")
@@ -4150,17 +4178,14 @@ plot_ctr_SyphIncCases <- function(syphfits, ctr_iso3, sex="both", years= 2010:20
   {
     long_ctr <- rbind(long_ctr_men)
     long_ctr <- subset(long_ctr, sex=="Males")
-    #mtitle <- paste(ctr," Syphilis prevalence trend among males (15-49 y)", sep=",")
     mtitle <- "Syphilis incident cases trend among males (15-49 y)"
   } else if (sex=="females")
   {
     long_ctr <- rbind(long_ctr_women)
     long_ctr <- subset(long_ctr, sex=="Females")
-    #mtitle <- paste(ctr," Syphilis prevalence trend among females (15-49 y)", sep=",")
     mtitle <- "Syphilis incident cases trend among females (15-49 y)"
   }
 
-  #long_ctr <- subset(long_ctr,Year>=min_year)
   long_ctr$population <- factor(long_ctr$population, levels=c("All","ANC Routine screening","ANC Survey","BloodDonor Screening Men",
                                                               "FSW","MSM","Survey LowRisk Men","BloodDonor Screening Men + Women",
                                                               "Male Sex Workers","MSM + MSW combined","PWID-Female","PWID-Male",
