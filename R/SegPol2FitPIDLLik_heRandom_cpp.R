@@ -3956,6 +3956,12 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
   if(fn_population%in%c("None","None_Unadjusted"))
   {
     long_ctr <- subset(long_ctr,datatype%in%"Reported")
+    if(fn_population=="None") {
+      mtitle <- "Syphilis prevalence data for adults - test adjusted (%)"
+    } else
+    {
+      mtitle <- "Syphilis prevalence data for adults - unadjusted (%)"
+    }
   }
 
   if(nrow(long_ctr)==0) return(NULL)
