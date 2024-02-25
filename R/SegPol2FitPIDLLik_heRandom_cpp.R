@@ -983,6 +983,18 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
       all_estMSM <- all_estFSW <- NULL
 
+      ##*******
+      idxGeneMen <-  which(tabb_all$Data_type%in%fn_filter_survey_LR$GeneMen)
+      idxGeneWom <-  which(tabb_all$Data_type%in%fn_filter_survey_LR$GeneWom)
+      idxPregWom <-  which(tabb_all$Data_type%in%fn_filter_survey_LR$PregWom)
+      idxBloodDo <-  which(tabb_all$Data_type%in%fn_filter_survey_LR$BloodDo)
+      if(length(unique(tabb_all[idxGeneMen,]$Year))<2) idxGeneMen <- NULL
+      if(length(unique(tabb_all[idxGeneWom,]$Year))<2) idxGeneWom <- NULL
+      if(length(unique(tabb_all[idxPregWom,]$Year))<2) idxPregWom <- NULL
+      if(length(unique(tabb_all[idxBloodDo,]$Year))<2) idxBloodDo <- NULL
+
+      all_estGeneMen <- all_estGeneWom <- all_estPregWom <- all_estBloodDo <- NULL
+      ##*****
       maxYPregWom <- maxYGeneWom <- maxYGeneMen <- maxYBloodDo <- floor(max(tab$Year) + FB_ProjMax_F)
       minYPregWom <- minYGeneWom <- minYGeneMen <- minYBloodDo <- ceiling(min(tab$Year) - FB_ProjMax_B)
 
@@ -1026,6 +1038,86 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilisPregWom$PrevEstPregWom = temp_prev*prevOR['PregWom']/(1-temp_prev+temp_prev*prevOR['PregWom'])
         Out_syphilisBloodDo$PrevEstBloodDo = temp_prev*prevOR['BloodDo']/(1-temp_prev+temp_prev*prevOR['BloodDo'])
 
+        #Make changes if less than 3 data points, following Jane's request
+        if(length(idxGeneWom)%in%c(2,3))
+        {
+          temp_GeneWom <- tabb_all[idxGeneWom,]
+          modGeneWom <- glm(Prevalence/100~Year, data=temp_GeneWom, family = quasibinomial(link="logit"))
+
+          aminGeneWom = floor(min(temp_GeneWom$Year))- FB_ProjMax_B
+          bmaxGeneWom = ceiling(max(temp_GeneWom$Year)) + FB_ProjMax_F
+
+          Vect_Year_Pred_GeneWom = Out_syphilis$year;
+          Vect_Year_Pred_GeneWom[Vect_Year_Pred_GeneWom>= bmaxGeneWom] = bmaxGeneWom
+          Vect_Year_Pred_GeneWom[Vect_Year_Pred_GeneWom<= aminGeneWom] = aminGeneWom #Not needed?
+
+          all_estGeneWom$prev <- expit(coef(modGeneWom)[1]+coef(modGeneWom)[2]*(Vect_Year_Pred_GeneWom))
+          Out_syphilisGeneWom$PrevEstF <- Out_syphilis$PrevEstF <- all_estGeneWom$prev
+
+          tabb_all$estim[idxGeneWom] = coef(modGeneWom)[1] +coef(modGeneWom)[2]*tabb_all$Year[idxGeneWom] #pred_glmfit(Years=tab$Year,res)
+          tabb_all$error[idxGeneWom] = log(tabb_all$Npos[idxGeneWom]/(tabb_all$N_tested[idxGeneWom]-tabb_all$Npos[idxGeneWom]))-tabb_all$estim[idxGeneWom]#res$residuals
+        }
+
+        #Make changes if less than 3 data points, following Jane's request
+        if(length(idxGeneMen)%in%c(2,3))
+        {
+          temp_GeneMen <- tabb_all[idxGeneMen,]
+          modGeneMen <- glm(Prevalence/100~Year, data=temp_GeneMen, family = quasibinomial(link="logit"))
+
+          aminGeneMen = floor(min(temp_GeneMen$Year))- FB_ProjMax_B
+          bmaxGeneMen = ceiling(max(temp_GeneMen$Year)) + FB_ProjMax_F
+
+          Vect_Year_Pred_GeneMen = Out_syphilis$year;
+          Vect_Year_Pred_GeneMen[Vect_Year_Pred_GeneMen>= bmaxGeneMen] = bmaxGeneMen
+          Vect_Year_Pred_GeneMen[Vect_Year_Pred_GeneMen<= aminGeneMen] = aminGeneMen #Not needed?
+
+          all_estGeneMen$prev <- expit(coef(modGeneMen)[1]+coef(modGeneMen)[2]*(Vect_Year_Pred_GeneMen))
+          Out_syphilisGeneMen$PrevEstM <- Out_syphilis$PrevEstM <- all_estGeneMen$prev
+
+          tabb_all$estim[idxGeneMen] = coef(modGeneMen)[1] +coef(modGeneMen)[2]*tabb_all$Year[idxGeneMen] #pred_glmfit(Years=tab$Year,res)
+          tabb_all$error[idxGeneMen] = log(tabb_all$Npos[idxGeneMen]/(tabb_all$N_tested[idxGeneMen]-tabb_all$Npos[idxGeneMen]))-tabb_all$estim[idxGeneMen]#res$residuals
+        }
+
+        #Make changes if less than 3 data points, following Jane's request
+        if(length(idxPregWom)%in%c(2,3))
+        {
+          temp_PregWom <- tabb_all[idxPregWom,]
+          modPregWom <- glm(Prevalence/100~Year, data=temp_PregWom, family = quasibinomial(link="logit"))
+
+          aminPregWom = floor(min(temp_PregWom$Year))- FB_ProjMax_B
+          bmaxPregWom = ceiling(max(temp_PregWom$Year)) + FB_ProjMax_F
+
+          Vect_Year_Pred_PregWom = Out_syphilis$year;
+          Vect_Year_Pred_PregWom[Vect_Year_Pred_PregWom>= bmaxPregWom] = bmaxPregWom
+          Vect_Year_Pred_PregWom[Vect_Year_Pred_PregWom<= aminPregWom] = aminPregWom #Not needed?
+
+          all_estPregWom$prev <- expit(coef(modPregWom)[1]+coef(modPregWom)[2]*(Vect_Year_Pred_PregWom))
+          Out_syphilisPregWom$PrevEstPregWom <- all_estPregWom$prev
+
+          tabb_all$estim[idxPregWom] = coef(modPregWom)[1] +coef(modPregWom)[2]*tabb_all$Year[idxPregWom] #pred_glmfit(Years=tab$Year,res)
+          tabb_all$error[idxPregWom] = log(tabb_all$Npos[idxPregWom]/(tabb_all$N_tested[idxPregWom]-tabb_all$Npos[idxPregWom]))-tabb_all$estim[idxPregWom]#res$residuals
+        }
+
+        #Make changes if less than 3 data points, following Jane's request
+        if(length(idxBloodDo)%in%c(2,3))
+        {
+          temp_BloodDo <- tabb_all[idxBloodDo,]
+          modBloodDo <- glm(Prevalence/100~Year, data=temp_BloodDo, family = quasibinomial(link="logit"))
+
+          aminBloodDo = floor(min(temp_BloodDo$Year))- FB_ProjMax_B
+          bmaxBloodDo = ceiling(max(temp_BloodDo$Year)) + FB_ProjMax_F
+
+          Vect_Year_Pred_BloodDo = Out_syphilis$year;
+          Vect_Year_Pred_BloodDo[Vect_Year_Pred_BloodDo>= bmaxBloodDo] = bmaxBloodDo
+          Vect_Year_Pred_BloodDo[Vect_Year_Pred_BloodDo<= aminBloodDo] = aminBloodDo #Not needed?
+
+          all_estBloodDo$prev <- expit(coef(modBloodDo)[1]+coef(modBloodDo)[2]*(Vect_Year_Pred_BloodDo))
+          Out_syphilisBloodDo$PrevEstBloodDo <- all_estBloodDo$prev
+
+          tabb_all$estim[idxBloodDo] = coef(modBloodDo)[1] +coef(modBloodDo)[2]*tabb_all$Year[idxBloodDo] #pred_glmfit(Years=tab$Year,res)
+          tabb_all$error[idxBloodDo] = log(tabb_all$Npos[idxBloodDo]/(tabb_all$N_tested[idxBloodDo]-tabb_all$Npos[idxBloodDo]))-tabb_all$estim[idxBloodDo]#res$residuals
+        }
+        ################################################################################
         #Forward and Backward extrapolation constraints
         Out_syphilis$PrevEstF[Out_syphilis$year>=maxYGeneWom] = mean(Out_syphilis$PrevEstF[Out_syphilis$year==maxYGeneWom])
         Out_syphilis$PrevEstF[Out_syphilis$year<=minYGeneWom] = mean(Out_syphilis$PrevEstF[Out_syphilis$year==minYGeneWom])
@@ -1178,12 +1270,120 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
               resboot_SyphilisPrevGeneWom[count,] = resboot_SyphilisPrevF[count,] = temp_prev.boot*prevOR.boot["GeneWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneWom"])#gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res)
               resboot_SyphilisInciF[count,] = gmodestim0PID_Boot$funcestprojinci(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res
+              if(length(idxGeneWom)%in%c(2,3))
+              {
+                tabb_all$p[idxGeneWom] = tabb_all$estim[idxGeneWom]+ sample(tabb_all$error[idxGeneWom], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
+                tabb_all$p[idxGeneWom] = exp(tabb_all$p[idxGeneWom])/(1+exp(tabb_all$p[idxGeneWom]))
 
+                tabb_all$alpha[idxGeneWom] = tabb_all$p[idxGeneWom]*(tabb_all$N_tested[idxGeneWom]-1)
+                tabb_all$beta[idxGeneWom] = (1-tabb_all$p[idxGeneWom])*(tabb_all$N_tested[idxGeneWom]-1)
+                tabb_all$Npos[idxGeneWom] = (qbeta(rep(u,length(tabb_all$Npos[idxGeneWom])),tabb_all$alpha[idxGeneWom],tabb_all$beta[idxGeneWom])*tabb_all$N_tested[idxGeneWom])
+
+                tabb_all$p[idxGeneWom] = tabb_all$Npos[idxGeneWom]/tabb_all$N_tested[idxGeneWom]*runif(length(tabb_all$Npos[idxGeneWom]),0.75,1.25);
+
+                temp_GeneWom <- tabb_all[idxGeneWom,] #tab.boot[idxMSM,]
+                temp_GeneWom$Prevalence <- rbinom(length(idxGeneWom),round(temp_GeneWom$N_tested),temp_GeneWom$Prevalence/100)/round(temp_GeneWom$N_tested)
+                modGeneWom <- glm(Prevalence~Year, data=temp_GeneWom, family = quasibinomial(link="logit"))
+
+                #
+                aminGeneWom = floor(min(temp_GeneWom$Year))- FB_ProjMax_B
+                bmaxGeneWom = ceiling(max(temp_GeneWom$Year)) + FB_ProjMax_F
+
+                Vect_Year_Pred_GeneWom = Out_syphilis$year;
+                Vect_Year_Pred_GeneWom[Vect_Year_Pred_GeneWom>= bmaxGeneWom] = bmaxGeneWom
+                Vect_Year_Pred_GeneWom[Vect_Year_Pred_GeneWom<= aminGeneWom] = aminGeneWom #Not needed?
+                #
+
+                all_estGeneWom$prev <- expit(coef(modGeneWom)[1]+coef(modGeneWom)[2]*(Vect_Year_Pred_GeneWom))
+                resboot_SyphilisPrevGeneWom[count,] = resboot_SyphilisPrevF[count,] <- all_estGeneWom$prev
+              }
 
               resboot_SyphilisPrevGeneMen[count,] = resboot_SyphilisPrevM[count,] = temp_prev.boot*prevOR.boot["GeneMen"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneMen"])
+              if(length(idxGeneMen)%in%c(2,3))
+              {
+                tabb_all$p[idxGeneMen] = tabb_all$estim[idxGeneMen]+ sample(tabb_all$error[idxGeneMen], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
+                tabb_all$p[idxGeneMen] = exp(tabb_all$p[idxGeneMen])/(1+exp(tabb_all$p[idxGeneMen]))
+
+                tabb_all$alpha[idxGeneMen] = tabb_all$p[idxGeneMen]*(tabb_all$N_tested[idxGeneMen]-1)
+                tabb_all$beta[idxGeneMen] = (1-tabb_all$p[idxGeneMen])*(tabb_all$N_tested[idxGeneMen]-1)
+                tabb_all$Npos[idxGeneMen] = (qbeta(rep(u,length(tabb_all$Npos[idxGeneMen])),tabb_all$alpha[idxGeneMen],tabb_all$beta[idxGeneMen])*tabb_all$N_tested[idxGeneMen])
+
+                tabb_all$p[idxGeneMen] = tabb_all$Npos[idxGeneMen]/tabb_all$N_tested[idxGeneMen]*runif(length(tabb_all$Npos[idxGeneMen]),0.75,1.25);
+
+                temp_GeneMen <- tabb_all[idxGeneMen,] #tab.boot[idxMSM,]
+                temp_GeneMen$Prevalence <- rbinom(length(idxGeneMen),round(temp_GeneMen$N_tested),temp_GeneMen$Prevalence/100)/round(temp_GeneMen$N_tested)
+                modGeneMen <- glm(Prevalence~Year, data=temp_GeneMen, family = quasibinomial(link="logit"))
+
+                #
+                aminGeneMen = floor(min(temp_GeneMen$Year))- FB_ProjMax_B
+                bmaxGeneMen = ceiling(max(temp_GeneMen$Year)) + FB_ProjMax_F
+
+                Vect_Year_Pred_GeneMen = Out_syphilis$year;
+                Vect_Year_Pred_GeneMen[Vect_Year_Pred_GeneMen>= bmaxGeneMen] = bmaxGeneMen
+                Vect_Year_Pred_GeneMen[Vect_Year_Pred_GeneMen<= aminGeneMen] = aminGeneMen #Not needed?
+                #
+
+                all_estGeneMen$prev <- expit(coef(modGeneMen)[1]+coef(modGeneMen)[2]*(Vect_Year_Pred_GeneMen))
+                resboot_SyphilisPrevGeneMen[count,] <- resboot_SyphilisPrevM[count,] <- all_estGeneMen$prev
+              }
+
               resboot_SyphilisPrevPregWom[count,] = temp_prev.boot*prevOR.boot["PregWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["PregWom"])
+              if(length(idxPregWom)%in%c(2,3))
+              {
+                tabb_all$p[idxPregWom] = tabb_all$estim[idxPregWom]+ sample(tabb_all$error[idxPregWom], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
+                tabb_all$p[idxPregWom] = exp(tabb_all$p[idxPregWom])/(1+exp(tabb_all$p[idxPregWom]))
+
+                tabb_all$alpha[idxPregWom] = tabb_all$p[idxPregWom]*(tabb_all$N_tested[idxPregWom]-1)
+                tabb_all$beta[idxPregWom] = (1-tabb_all$p[idxPregWom])*(tabb_all$N_tested[idxPregWom]-1)
+                tabb_all$Npos[idxPregWom] = (qbeta(rep(u,length(tabb_all$Npos[idxPregWom])),tabb_all$alpha[idxPregWom],tabb_all$beta[idxPregWom])*tabb_all$N_tested[idxPregWom])
+
+                tabb_all$p[idxPregWom] = tabb_all$Npos[idxPregWom]/tabb_all$N_tested[idxPregWom]*runif(length(tabb_all$Npos[idxPregWom]),0.75,1.25);
+
+                temp_PregWom <- tabb_all[idxPregWom,] #tab.boot[idxMSM,]
+                temp_PregWom$Prevalence <- rbinom(length(idxPregWom),round(temp_PregWom$N_tested),temp_PregWom$Prevalence/100)/round(temp_PregWom$N_tested)
+                modPregWom <- glm(Prevalence~Year, data=temp_PregWom, family = quasibinomial(link="logit"))
+
+                #
+                aminPregWom = floor(min(temp_PregWom$Year))- FB_ProjMax_B
+                bmaxPregWom = ceiling(max(temp_PregWom$Year)) + FB_ProjMax_F
+
+                Vect_Year_Pred_PregWom = Out_syphilis$year;
+                Vect_Year_Pred_PregWom[Vect_Year_Pred_PregWom>= bmaxPregWom] = bmaxPregWom
+                Vect_Year_Pred_PregWom[Vect_Year_Pred_PregWom<= aminPregWom] = aminPregWom #Not needed?
+                #
+
+                all_estPregWom$prev <- expit(coef(modPregWom)[1]+coef(modPregWom)[2]*(Vect_Year_Pred_PregWom))
+                resboot_SyphilisPrevPregWom[count,] <- all_estPregWom$prev
+              }
 
               resboot_SyphilisPrevBloodDo[count,] = temp_prev.boot*prevOR.boot["BloodDo"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["BloodDo"])
+              if(length(idxBloodDo)%in%c(2,3))
+              {
+                tabb_all$p[idxBloodDo] = tabb_all$estim[idxBloodDo]+ sample(tabb_all$error[idxBloodDo], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
+                tabb_all$p[idxBloodDo] = exp(tabb_all$p[idxBloodDo])/(1+exp(tabb_all$p[idxBloodDo]))
+
+                tabb_all$alpha[idxBloodDo] = tabb_all$p[idxBloodDo]*(tabb_all$N_tested[idxBloodDo]-1)
+                tabb_all$beta[idxBloodDo] = (1-tabb_all$p[idxBloodDo])*(tabb_all$N_tested[idxBloodDo]-1)
+                tabb_all$Npos[idxBloodDo] = (qbeta(rep(u,length(tabb_all$Npos[idxBloodDo])),tabb_all$alpha[idxBloodDo],tabb_all$beta[idxBloodDo])*tabb_all$N_tested[idxBloodDo])
+
+                tabb_all$p[idxBloodDo] = tabb_all$Npos[idxBloodDo]/tabb_all$N_tested[idxBloodDo]*runif(length(tabb_all$Npos[idxBloodDo]),0.75,1.25);
+
+                temp_BloodDo <- tabb_all[idxBloodDo,] #tab.boot[idxMSM,]
+                temp_BloodDo$Prevalence <- rbinom(length(idxBloodDo),round(temp_BloodDo$N_tested),temp_BloodDo$Prevalence/100)/round(temp_BloodDo$N_tested)
+                modBloodDo <- glm(Prevalence~Year, data=temp_BloodDo, family = quasibinomial(link="logit"))
+
+                #
+                aminBloodDo = floor(min(temp_BloodDo$Year))- FB_ProjMax_B
+                bmaxBloodDo = ceiling(max(temp_BloodDo$Year)) + FB_ProjMax_F
+
+                Vect_Year_Pred_BloodDo = Out_syphilis$year;
+                Vect_Year_Pred_BloodDo[Vect_Year_Pred_BloodDo>= bmaxBloodDo] = bmaxBloodDo
+                Vect_Year_Pred_BloodDo[Vect_Year_Pred_BloodDo<= aminBloodDo] = aminBloodDo #Not needed?
+                #
+
+                all_estBloodDo$prev <- expit(coef(modBloodDo)[1]+coef(modBloodDo)[2]*(Vect_Year_Pred_BloodDo))
+                resboot_SyphilisPrevBloodDo[count,] <- all_estBloodDo$prev
+              }
 
               #Forward and Backward extrapolation constraints
               resboot_SyphilisPrevGeneWom[count,Out_syphilisGeneWom$year>=maxYGeneWom] = mean(resboot_SyphilisPrevGeneWom[count,Out_syphilisGeneWom$year==maxYGeneWom])
