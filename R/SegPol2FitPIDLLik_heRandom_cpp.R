@@ -4029,28 +4029,22 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     {
       long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="FSW"))
 
-      if(sum(temp_all_res$population%in%temp_pop)<=1)
-      {
-        show_chart <- FALSE
-      }
     } else if (sex=="males")
     {
       long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="MSM"))
 
-      if(sum(temp_all_res$population%in%temp_pop)<=1)
-      {
-        show_chart <- FALSE
-      }
     } else if (sex=="both")
     {
       long_ctr <- rbind(long_ctr, temp_all_res)
+    }
 
-      if(sum(temp_all_res$population%in%temp_pop)<=1)
-      {
-        show_chart <- FALSE
-      }
+    if(sum(is.na(long_ctr))>=1)
+    {
+      show_chart <- FALSE
     }
   }
+
+  y_label <- "Test-adjusted prevalence, active syphilis (%)"
 
   if(fn_population%in%c("None","None_Unadjusted"))
   {
@@ -4060,6 +4054,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     } else
     {
       mtitle <- "Syphilis prevalence data for adults - unadjusted (%)"
+      y_label <- "Prevalence, active syphilis (%)"
     }
   }
 
@@ -4075,7 +4070,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     geom_pointrange(data =. %>% filter(Country==ctr& datatype!="Model"), position=position_jitter(w = 0.05, h = 0),#position=position_jitter(width=0.5),
                     linetype='solid', aes(shape=weight)) + guides(shape = "none") +
     expand_limits(y = 0) +
-    labs(title = mtitle, x = "Year", y="Test-adjusted prevalence, active syphilis (%)") +
+    labs(title = mtitle, x = "Year", y=y_label) +
     theme_minimal() +
     theme(legend.position = "bottom")
 
