@@ -4087,7 +4087,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     theme(
       # add margin on the left of the drawing canvas,
       # so title is aligned with left edge of first plot
-      plot.margin = margin(2, 2, 2, 7)
+      plot.margin = margin(2, 2, 2, 2)
     )
 
   all_plots_fig_S2 <- plot_grid(
@@ -4589,7 +4589,7 @@ plot_ctr_EMTCT <- function(xCSProj, ctr_iso3, years= 2015:2021)
     theme(
       # add margin on the left of the drawing canvas,
       # so title is aligned with left edge of first plot
-      plot.margin = margin(2, 2, 2, 7)
+      plot.margin = margin(2, 2, 2, 2)
     )
 
   all_plots_fig_S2 <- plot_grid(
