@@ -510,6 +510,27 @@ GetLROR <- function(dat, L_surveytypes)
 
   res <- exp(par1)
   names(res) <- c("PregWom","GeneWom","GeneMen", "BloodDo")
+
+  if(sum(dat$Data_type%in%L_surveytypes$PregWom)<=1)
+  {
+    res[names(res)=="PregWom"] <- NA
+  }
+
+  if(sum(dat$Data_type%in%L_surveytypes$GeneWom)<=1)
+  {
+    res[names(res)=="GeneWom"] <- NA
+  }
+
+  if(sum(dat$Data_type%in%L_surveytypes$GeneMen)<=1)
+  {
+    res[names(res)=="GeneMen"] <- NA
+  }
+
+  if(sum(dat$Data_type%in%L_surveytypes$BloodDo)<=1)
+  {
+    res[names(res)=="BloodDo"] <- NA
+  }
+
   res
 }
 
@@ -1061,10 +1082,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         } else if(length(idxMSM)==1)
         {
           temp_MSM <- tabb_all[idxMSM,]
-          Out_syphilisKPs$PrevEstMSM <- temp_MSM$p[1]
+          Out_syphilisKPs$PrevEstMSM <- temp_MSM$p[1]*NA
         } else
         {
-          Out_syphilisKPs$PrevEstMSM <- expit(-log(LRtoHRPOR$MtoMSM$POR) + logit(Out_syphilis$PrevEstM))
+          Out_syphilisKPs$PrevEstMSM <- expit(-log(LRtoHRPOR$MtoMSM$POR) + logit(Out_syphilis$PrevEstM))*NA
         }
         Out_syphilisKPs$CasePrevEstMSM <- Out_syphilisKPs$PrevEstMSM
 
@@ -1089,10 +1110,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         } else if(length(idxFSW)==1)
         {
           temp_FSW <- tabb_all[idxFSW,]
-          Out_syphilisKPs$PrevEstFSW <- temp_FSW$p[1]
+          Out_syphilisKPs$PrevEstFSW <- temp_FSW$p[1]*NA
         } else
         {
-          Out_syphilisKPs$PrevEstFSW <- expit(-log(LRtoHRPOR$FtoFSW$POR) + logit(Out_syphilis$PrevEstF))
+          Out_syphilisKPs$PrevEstFSW <- expit(-log(LRtoHRPOR$FtoFSW$POR) + logit(Out_syphilis$PrevEstF))*NA
         }
         Out_syphilisKPs$CasePrevEstFSW <- Out_syphilisKPs$PrevEstFSW
 
@@ -1233,10 +1254,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
             tabb_all$p[idxMSM] = tabb_all$Npos[idxMSM]/tabb_all$N_tested[idxMSM]*runif(length(tabb_all$Npos[idxMSM]),0.75,1.25);
 
             temp_MSM <- tabb_all[idxMSM,]
-            resboot_SyphilisPrevMSM[count,] <- temp_MSM$p[1]
+            resboot_SyphilisPrevMSM[count,] <- temp_MSM$p[1]*NA
           }else
           {
-            resboot_SyphilisPrevMSM[count,] <- expit(-log(LRtoHRPOR$MtoMSM$POR+rnorm(numrep,0,LRtoHRPOR$MtoMSM$sdlogPOR)) + logit(resboot_SyphilisPrevM[count,]))
+            resboot_SyphilisPrevMSM[count,] <- NA*expit(-log(LRtoHRPOR$MtoMSM$POR+rnorm(numrep,0,LRtoHRPOR$MtoMSM$sdlogPOR)) + logit(resboot_SyphilisPrevM[count,]))
           }
 
           if(length(idxFSW)>=2)
@@ -1274,10 +1295,10 @@ fCountryAnalysis_glob <- function(Nboots=1000,
             tabb_all$p[idxFSW] = tabb_all$Npos[idxFSW]/tabb_all$N_tested[idxFSW]*runif(length(tabb_all$Npos[idxFSW]),0.75,1.25);
 
             temp_FSW <- tabb_all[idxFSW,]
-            resboot_SyphilisPrevFSW[count,] <- temp_FSW$p[1]
+            resboot_SyphilisPrevFSW[count,] <- temp_FSW$p[1]*NA
           } else
           {
-            resboot_SyphilisPrevFSW[count,] <- expit(-log(LRtoHRPOR$FtoFSW$POR+rnorm(numrep,0,LRtoHRPOR$FtoFSW$sdlogPOR)) + logit(resboot_SyphilisPrevF[count,]))
+            resboot_SyphilisPrevFSW[count,] <- NA*expit(-log(LRtoHRPOR$FtoFSW$POR+rnorm(numrep,0,LRtoHRPOR$FtoFSW$sdlogPOR)) + logit(resboot_SyphilisPrevF[count,]))
           }
           if(count>=Nboots) break
         } #End While
@@ -1412,13 +1433,27 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
         ##############################################################################
         #Males
-        Out_syphilis$CasePrevEstM <- Out_syphilisGeneMen$CasePrevEstM + Out_syphilisKPs$CasePrevEstMSM
+        if(all(is.na(Out_syphilisKPs$CasePrevEstMSM))){#This is Jane's approach which is obviously wrong
+          Out_syphilis$CasePrevEstM <- 1.1*(Out_syphilisGeneMen$CasePrevEstM + popMSM*Out_syphilisGeneMen$CasePrevEstM/(popM-popMSM))
+        } else
+        {
+          Out_syphilis$CasePrevEstM <- Out_syphilisGeneMen$CasePrevEstM + Out_syphilisKPs$CasePrevEstMSM
+        }
         Out_syphilis$PrevEstM <- Out_syphilis$CasePrevEstM/popM
 
-        resboot_SyphilisCasePrevM <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
+
+        if(all(is.na(Out_syphilisKPs$CasePrevEstMSM))){#This is Jane's approach which is obviously wrong
+          resboot_SyphilisCasePrevM <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
+          {
+            1.1*as.numeric(resboot_SyphilisPrevGeneMen[ii,])*(popM)
+          }))
+        } else
         {
-          as.numeric(resboot_SyphilisPrevGeneMen[ii,])*(popM-popMSM)+as.numeric(resboot_SyphilisPrevMSM[ii,])*popMSM
-        }))
+          resboot_SyphilisCasePrevM <- t(sapply(1:nrow(resboot_SyphilisPrevM), function(ii)
+          {
+            as.numeric(resboot_SyphilisPrevGeneMen[ii,])*(popM-popMSM)+as.numeric(resboot_SyphilisPrevMSM[ii,])*popMSM
+          }))
+        }
 
         resboot_SyphilisPrevM <- t(sapply(1:nrow(resboot_SyphilisCasePrevM), function(ii)
         {
@@ -1431,12 +1466,28 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilis$PrevEstM_UpB <- CI_SyphilisPrevM[3,]
         #Females
         Out_syphilis$CasePrevEstF <- Out_syphilisGeneWom$CasePrevEstF + Out_syphilisKPs$CasePrevEstFSW
+        if(all(is.na(Out_syphilisKPs$CasePrevEstFSW)))
+        {
+          Out_syphilis$CasePrevEstF <- Out_syphilisGeneWom$CasePrevEstF + Out_syphilisGeneWom$CasePrevEstF
+        } else
+        {
+          Out_syphilis$CasePrevEstF <- 1.1(Out_syphilisGeneWom$CasePrevEstF + popFSW*Out_syphilisKPs$CasePrevEstFSW/((popF-popFSW)))
+        }
         Out_syphilis$PrevEstF <- Out_syphilis$CasePrevEstF/popF
 
-        resboot_SyphilisCasePrevF <- t(sapply(1:nrow(resboot_SyphilisPrevF), function(ii)
+        if(all(is.na(Out_syphilisKPs$CasePrevEstFSW)))
         {
-          as.numeric(resboot_SyphilisPrevGeneWom[ii,])*(popF-popFSW)+as.numeric(resboot_SyphilisPrevFSW[ii,])*popFSW
-        }))
+          resboot_SyphilisCasePrevF <- t(sapply(1:nrow(resboot_SyphilisPrevF), function(ii)
+          {
+            1.1*as.numeric(resboot_SyphilisPrevGeneWom[ii,])*(popF)
+          }))
+        } else
+        {
+          resboot_SyphilisCasePrevF <- t(sapply(1:nrow(resboot_SyphilisPrevF), function(ii)
+          {
+            as.numeric(resboot_SyphilisPrevGeneWom[ii,])*(popF-popFSW)+as.numeric(resboot_SyphilisPrevFSW[ii,])*popFSW
+          }))
+        }
 
         resboot_SyphilisPrevF <- t(sapply(1:nrow(resboot_SyphilisCasePrevF), function(ii)
         {
@@ -1695,7 +1746,7 @@ RunFitSyphilis0 <- function(name.data.file,
   })
 
   SyphData$WghtNSpectrum = SyphData$Weight_for_Spectrum_fitting
-  SyphData <- subset(SyphData, Year>= FIRST_YEAR)
+  SyphData <- subset(SyphData, Year>= min_year_last_data)#SyphData <- subset(SyphData, Year>= max(FIRST_YEAR,min_year_last_data))
   data.syphilis = SyphData;
 
   if(appendtodefaultDB) data.syphilis <- rbind(data.syphilis,Default_SyphDataBase_20230902)
@@ -1928,7 +1979,7 @@ RunFitSyphilis1 <- function(name.data.file,
   })
 
   SyphData$WghtNSpectrum = SyphData$Weight_for_Spectrum_fitting
-  SyphData <- subset(SyphData, Year>= FIRST_YEAR)
+  SyphData <- subset(SyphData, Year>= min_year_last_data)#SyphData <- subset(SyphData, Year>= FIRST_YEAR)#
   data.syphilis = SyphData;
   if(appendtodefaultDB) data.syphilis <- rbind(data.syphilis,Default_SyphDataBase_20230902)
 
@@ -2660,6 +2711,18 @@ CalcCS_p <- function(syphfitfile, list_countries=NULL, proj_years=1990:2025,min_
     temp_data$value <- CongenDataRaw$`Women with >= 1 ANC visit (%)`;
     temp_data$lower <- CongenDataRaw$`Women with >= 1 ANC visit (%)`;
     temp_data$upper <- CongenDataRaw$`Women with >= 1 ANC visit (%)`;
+    temp_data$datatype <- "Reported"
+    LongCongenDataOutForPlotsRaw <- rbind(LongCongenDataOutForPlotsRaw,temp_data)
+  }
+
+  #Treated (%)
+  temp_data <- CongenDataRaw[,1:9];
+  if(nrow(temp_data)>=1)
+  {
+    temp_data$indicator <- "Treated (%)";
+    temp_data$value <- CongenDataRaw$`Treated (%)`;
+    temp_data$lower <- CongenDataRaw$`Treated (%)`;
+    temp_data$upper <- CongenDataRaw$`Treated (%)`;
     temp_data$datatype <- "Reported"
     LongCongenDataOutForPlotsRaw <- rbind(LongCongenDataOutForPlotsRaw,temp_data)
   }
@@ -3901,15 +3964,26 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     {
       temp_pop = c(rgp$GeneMen,"General-men")
       mtitle <- "Syphilis prevalence trend among General-men (15-49 y)"
+
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
+      {
+        show_chart <- FALSE
+      }
     } else if(fn_population=="General-women" )
     {
       temp_pop = c(rgp$GeneWom, "General-women")
       mtitle <- "Syphilis prevalence trend among General-women (15-49 y)"
+
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
+      {
+        show_chart <- FALSE
+      }
     } else if(fn_population=="Pregnant women" )
     {
       temp_pop = c(rgp$PregWom,"Pregnant women")
       mtitle <- "Syphilis prevalence trend among pregnant women (15-49 y)"
-      if(sum(temp_all_res$population%in%c("ANC Routine screening","ANC Routine screening"))==0)
+
+      if(sum(temp_all_res$population%in%c("ANC Routine screening","ANC Routine screening"))<=1)
       {
         show_chart <- FALSE
       }
@@ -3917,10 +3991,20 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     {
       temp_pop = "FSW"
       mtitle <- "Syphilis prevalence trend among Females Sex Workers (FSW)"
+
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
+      {
+        show_chart <- FALSE
+      }
     } else if(fn_population=="MSM" )
     {
       temp_pop = "MSM"
       mtitle <- "Syphilis prevalence trend among Men who have Sex with Men (MSM)"
+
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
+      {
+        show_chart <- FALSE
+      }
     } else if(fn_population=="BloodDonor" )
     {
       temp_pop = c("BloodDonor Screening Men","BloodDonor Screening Men + Women",
@@ -3928,7 +4012,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
                    "Blood donors", "Blood donors/General-women","Blood donors/General-women/General-men")
       mtitle <- "Syphilis prevalence trend among Blood Donors"
 
-      if(sum(temp_all_res$population%in%temp_pop)==0)
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
       {
         show_chart <- FALSE
       }
@@ -3944,12 +4028,27 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     if(sex=="females")
     {
       long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="FSW"))
+
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
+      {
+        show_chart <- FALSE
+      }
     } else if (sex=="males")
     {
       long_ctr <- rbind(long_ctr, subset(temp_all_res,population=="MSM"))
+
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
+      {
+        show_chart <- FALSE
+      }
     } else if (sex=="both")
     {
       long_ctr <- rbind(long_ctr, temp_all_res)
+
+      if(sum(temp_all_res$population%in%temp_pop)<=1)
+      {
+        show_chart <- FALSE
+      }
     }
   }
 
