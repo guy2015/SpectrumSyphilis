@@ -445,8 +445,8 @@ GetLROR <- function(dat, L_surveytypes)
     projprev[dat$Data_type%in%L_surveytypes$GeneMen] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[3])
     projprev[dat$Data_type%in%L_surveytypes$BloodDo] <- dat$estimprev[dat$Data_type%in%L_surveytypes$BloodDo]*X[3]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$BloodDo]+dat$estimprev[dat$Data_type%in%L_surveytypes$BloodDo]*X[3])
 
-    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/1000
-    nnloss
+    nnloss <-  -sum(dat$Weights*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/1000 #nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/1000
+    nnloss #
   }
 
   #Pregnant Women
@@ -455,8 +455,8 @@ GetLROR <- function(dat, L_surveytypes)
     X <- exp(par)
     projprev <- numeric()
     projprev[dat$Data_type%in%L_surveytypes$PregWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$PregWom]*X[1])
-    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
-    nnloss
+    nnloss <-  -sum(dat$Weights*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(pmax(1-projprev,1e-10))), na.rm=T) + sum(par^2)/100#nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(pmax(1-projprev,1e-10))), na.rm=T) + sum(par^2)/100
+    nnloss #
   }
 
   par0_pw <- rep(0,2)
@@ -469,8 +469,8 @@ GetLROR <- function(dat, L_surveytypes)
     X <- exp(par)
     projprev <- numeric()
     projprev[dat$Data_type%in%L_surveytypes$GeneWom] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneWom]*X[1])
-    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
-    nnloss
+    nnloss <-  -sum(dat$Weights*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100#nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
+    nnloss #
   }
 
   par0_gw <- rep(0,2)
@@ -483,8 +483,8 @@ GetLROR <- function(dat, L_surveytypes)
     X <- exp(par)
     projprev <- numeric()
     projprev[dat$Data_type%in%L_surveytypes$GeneMen] <- dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]+dat$estimprev[dat$Data_type%in%L_surveytypes$GeneMen]*X[1])
-    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
-    nnloss
+    nnloss <-  -sum(dat$Weights*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100#nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
+    nnloss#
   }
 
   par0_gm <- rep(0,2)
@@ -497,8 +497,8 @@ GetLROR <- function(dat, L_surveytypes)
     X <- exp(par)
     projprev <- numeric()
     projprev[dat$Data_type%in%L_surveytypes$BloodDo] <- dat$estimprev[dat$Data_type%in%L_surveytypes$BloodDo]*X[1]/(1-dat$estimprev[dat$Data_type%in%L_surveytypes$BloodDo]+dat$estimprev[dat$Data_type%in%L_surveytypes$BloodDo]*X[1])
-    nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
-    nnloss
+    nnloss <-  -sum(dat$Weights*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100#nnloss <-  -sum(dat$N_tested*(dat$p*log(pmax(projprev,1e-10)) + (1-dat$p)*log(1-projprev)), na.rm=T) + sum(par^2)/100
+    nnloss#Weights
   }
 
   par0_bd <- rep(0,2)
