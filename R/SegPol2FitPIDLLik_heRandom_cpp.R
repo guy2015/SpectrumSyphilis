@@ -1175,7 +1175,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           Out_syphilisKPs$PrevEstMSM <- temp_MSM$p[1]*NA
         } else
         {
-          Out_syphilisKPs$PrevEstMSM <- expit(-log(LRtoHRPOR$MtoMSM$POR) + logit(Out_syphilis$PrevEstM))*NA
+          Out_syphilisKPs$PrevEstMSM <- NA #expit(-log(LRtoHRPOR$MtoMSM$POR) + logit(Out_syphilis$PrevEstM))*NA
         }
         Out_syphilisKPs$CasePrevEstMSM <- Out_syphilisKPs$PrevEstMSM
 
@@ -1203,7 +1203,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
           Out_syphilisKPs$PrevEstFSW <- temp_FSW$p[1]*NA
         } else
         {
-          Out_syphilisKPs$PrevEstFSW <- expit(-log(LRtoHRPOR$FtoFSW$POR) + logit(Out_syphilis$PrevEstF))*NA
+          Out_syphilisKPs$PrevEstFSW <- NA #expit(-log(LRtoHRPOR$FtoFSW$POR) + logit(Out_syphilis$PrevEstF))*NA
         }
         Out_syphilisKPs$CasePrevEstFSW <- Out_syphilisKPs$PrevEstFSW
 
@@ -1455,7 +1455,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
             resboot_SyphilisPrevMSM[count,] <- temp_MSM$p[1]*NA
           }else
           {
-            resboot_SyphilisPrevMSM[count,] <- NA*expit(-log(LRtoHRPOR$MtoMSM$POR+rnorm(numrep,0,LRtoHRPOR$MtoMSM$sdlogPOR)) + logit(resboot_SyphilisPrevM[count,]))
+            resboot_SyphilisPrevMSM[count,] <- NA #*expit(-log(LRtoHRPOR$MtoMSM$POR+rnorm(numrep,0,LRtoHRPOR$MtoMSM$sdlogPOR)) + logit(resboot_SyphilisPrevM[count,]))
           }
 
           if(length(idxFSW)>=2)
@@ -1496,7 +1496,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
             resboot_SyphilisPrevFSW[count,] <- temp_FSW$p[1]*NA
           } else
           {
-            resboot_SyphilisPrevFSW[count,] <- NA*expit(-log(LRtoHRPOR$FtoFSW$POR+rnorm(numrep,0,LRtoHRPOR$FtoFSW$sdlogPOR)) + logit(resboot_SyphilisPrevF[count,]))
+            resboot_SyphilisPrevFSW[count,] <- NA #*expit(-log(LRtoHRPOR$FtoFSW$POR+rnorm(numrep,0,LRtoHRPOR$FtoFSW$sdlogPOR)) + logit(resboot_SyphilisPrevF[count,]))
           }
           if(count>=Nboots) break
         } #End While
@@ -1811,6 +1811,8 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         ctr_res <- list(Out_syphilis=Out_syphilis, infoRun=infoRun, CountryDataUse=CountryDataUse, CountryDataUse=CountryDataUse,
                         Out_syphilisKPs=Out_syphilisKPs, Out_syphilisPregWom=Out_syphilisPregWom, Out_syphilisGeneWom=Out_syphilisGeneWom,
                         Out_syphilisGeneMen=Out_syphilisGeneMen, Out_syphilisBloodDo=Out_syphilisBloodDo)
+
+        #ctr_res -> all_res[[1]]
       } else
       {
         return(0)
