@@ -1652,7 +1652,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilis$CasePrevEstF <- Out_syphilisGeneWom$CasePrevEstGeneWom + Out_syphilisKPs$CasePrevEstFSW
         if(all(is.na(Out_syphilisKPs$CasePrevEstFSW)))
         {
-          Out_syphilis$CasePrevEstF <- 1.1*(Out_syphilisGeneWom$CasePrevEstGeneWom + popFSW*Out_syphilisGeneWom$CasePrevEstF/((popF-popFSW)))
+          Out_syphilis$CasePrevEstF <- 1.1*(Out_syphilisGeneWom$CasePrevEstGeneWom + popFSW*Out_syphilisGeneWom$CasePrevEstGeneWom/((popF-popFSW)))
         } else
         {
           Out_syphilis$CasePrevEstF <- Out_syphilisGeneWom$CasePrevEstGeneWom + Out_syphilisKPs$CasePrevEstFSW
