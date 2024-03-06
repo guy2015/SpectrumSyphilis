@@ -4285,7 +4285,7 @@ plot_ctr_SyphPrev <- function(syphfits, ctr_iso3, sex="both", years= 2010:2021, 
     } else
     {
       mtitle <- "Syphilis prevalence data for adults - unadjusted (%)"
-      y_label <- "Prevalence, active syphilis (%)"
+      y_label <- "Syphilis test positivity (%)" #y_label <- "Prevalence, active syphilis (%)"
     }
   }
 
