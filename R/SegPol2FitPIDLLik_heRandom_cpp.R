@@ -33,6 +33,7 @@ expit <- function(x)
    idxneg <- which(x<0 & !is.na(x))
    res[idxneg ] <- exp(x[idxneg])/(1+exp(x[idxneg]))
    res[idxpos] <- exp(x[idxpos])/(1+exp(x[idxpos]))
+   res[idxna] <- NA
    res
 }
 
