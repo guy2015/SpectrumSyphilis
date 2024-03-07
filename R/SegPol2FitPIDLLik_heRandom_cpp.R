@@ -1614,7 +1614,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         ##############################################################################
         #Males
         if(all(is.na(Out_syphilisKPs$CasePrevEstMSM))){#This is Jane's approach which is obviously wrong
-          Out_syphilis$CasePrevEstM <- 1.1*(Out_syphilisGeneMen$CasePrevEstGeneMen + popMSM*Out_syphilisGeneMen$CasePrevEstGeneMen/(popM-popMSM))
+          Out_syphilis$CasePrevEstM <- 1.1*Out_syphilisGeneMen$PrevEstGeneMen*popM#1.1*(Out_syphilisGeneMen$CasePrevEstGeneMen + popMSM*Out_syphilisGeneMen$CasePrevEstGeneMen/(popM-popMSM))
         } else
         {
           Out_syphilis$CasePrevEstM <- Out_syphilisGeneMen$CasePrevEstGeneMen + Out_syphilisKPs$CasePrevEstMSM
@@ -1652,7 +1652,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilis$CasePrevEstF <- Out_syphilisGeneWom$CasePrevEstGeneWom + Out_syphilisKPs$CasePrevEstFSW
         if(all(is.na(Out_syphilisKPs$CasePrevEstFSW)))
         {
-          Out_syphilis$CasePrevEstF <- 1.1*(Out_syphilisGeneWom$CasePrevEstGeneWom + popFSW*Out_syphilisGeneWom$CasePrevEstGeneWom/((popF-popFSW)))
+          Out_syphilis$CasePrevEstF <- 1.1*Out_syphilisGeneWom$PrevEstGeneWom*popF#1.1*(Out_syphilisGeneWom$CasePrevEstGeneWom + popFSW*Out_syphilisGeneWom$CasePrevEstGeneWom/((popF-popFSW)))
         } else
         {
           Out_syphilis$CasePrevEstF <- Out_syphilisGeneWom$CasePrevEstGeneWom + Out_syphilisKPs$CasePrevEstFSW
