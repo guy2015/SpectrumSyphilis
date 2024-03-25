@@ -1037,7 +1037,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         Out_syphilisBloodDo$PrevEstBloodDo = temp_prev*prevOR['BloodDo']/(1-temp_prev+temp_prev*prevOR['BloodDo'])
 
         #Make changes if less than 3 data points, following Jane's request
-        if(length(idxGeneWom)>=2)#%in%c(2,3))
+        if(length(idxGeneWom)%in%c(2:5))#if(length(idxGeneWom)>=2)#%in%c(2,3))
         {
           temp_GeneWom <- tabb_all_GeneWom[idxGeneWom,]
           modGeneWom <- glm(Prevalence/100~Year, data=temp_GeneWom, family = quasibinomial(link="logit"))
@@ -1058,7 +1058,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         }
 
         #Make changes if less than 3 data points, following Jane's request
-        if(length(idxGeneMen)>=2)#%in%c(2,3))
+        if(length(idxGeneMen)%in%c(2:5))#if(length(idxGeneMen)>=2)#%in%c(2,3))
         {
           temp_GeneMen <- tabb_all_GeneMen[idxGeneMen,]
           modGeneMen <- glm(Prevalence/100~Year, data=temp_GeneMen, family = quasibinomial(link="logit"))
@@ -1078,7 +1078,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         }
 
         #Make changes if less than 3 data points, following Jane's request
-        if(length(idxPregWom)>=2)#%in%c(2,3))
+        if(length(idxPregWom)%in%c(2:5))#if(length(idxPregWom)>=2)#%in%c(2,3))
         {
           temp_PregWom <- tabb_all_PregWom[idxPregWom,]
           modPregWom <- glm(Prevalence/100~Year, data=temp_PregWom, family = quasibinomial(link="logit"))
@@ -1098,7 +1098,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
         }
 
         #Make changes if less than 3 data points, following Jane's request
-        if(length(idxBloodDo)>=2)#%in%c(2,3))
+        if(length(idxBloodDo)%in%c(2:5))#if(length(idxBloodDo)>=2)#%in%c(2,3))
         {
           temp_BloodDo <- tabb_all_BloodDo[idxBloodDo,]
           modBloodDo <- glm(Prevalence/100~Year, data=temp_BloodDo, family = quasibinomial(link="logit"))
@@ -1269,7 +1269,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
 
               resboot_SyphilisPrevGeneWom[count,] =  temp_prev.boot*prevOR.boot["GeneWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneWom"])#gmodestim0PID_Boot$funcestprojprev(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res)
               resboot_SyphilisInciF[count,] = gmodestim0PID_Boot$funcestprojinci(Vect_Year_Pred)#pred_glmfit(Out_syphilis$year,res
-              if(length(idxGeneWom)>=2)#%in%c(2,3))
+              if(length(idxGeneWom)%in%c(2:5))#if(length(idxGeneWom)>=2)#%in%c(2,3))
               {
                 tabb_all_GeneWom$p[idxGeneWom] = tabb_all_GeneWom$estim[idxGeneWom]+ sample(tabb_all_GeneWom$error[idxGeneWom], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
                 tabb_all_GeneWom$p[idxGeneWom] = exp(tabb_all_GeneWom$p[idxGeneWom])/(1+exp(tabb_all_GeneWom$p[idxGeneWom]))
@@ -1298,7 +1298,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
               }
 
               resboot_SyphilisPrevGeneMen[count,] <- temp_prev.boot*prevOR.boot["GeneMen"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["GeneMen"])
-              if(length(idxGeneMen)>=2)#%in%c(2,3))
+              if(length(idxGeneMen)%in%c(2:5))#if(length(idxGeneMen)>=2)#%in%c(2,3))
               {
                 tabb_all_GeneMen$p[idxGeneMen] = tabb_all_GeneMen$estim[idxGeneMen]+ sample(tabb_all_GeneMen$error[idxGeneMen], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
                 tabb_all_GeneMen$p[idxGeneMen] = exp(tabb_all_GeneMen$p[idxGeneMen])/(1+exp(tabb_all_GeneMen$p[idxGeneMen]))
@@ -1327,7 +1327,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
               }
 
               resboot_SyphilisPrevPregWom[count,] = temp_prev.boot*prevOR.boot["PregWom"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["PregWom"])
-              if(length(idxPregWom)>=2)#%in%c(2,3))
+              if(length(idxPregWom)%in%c(2:5))#if(length(idxPregWom)>=2)#%in%c(2,3))
               {
                 tabb_all_PregWom$p[idxPregWom] = tabb_all_PregWom$estim[idxPregWom]+ sample(tabb_all_PregWom$error[idxPregWom], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
                 tabb_all_PregWom$p[idxPregWom] = exp(tabb_all_PregWom$p[idxPregWom])/(1+exp(tabb_all_PregWom$p[idxPregWom]))
@@ -1356,7 +1356,7 @@ fCountryAnalysis_glob <- function(Nboots=1000,
               }
 
               resboot_SyphilisPrevBloodDo[count,] = temp_prev.boot*prevOR.boot["BloodDo"]/(1-temp_prev.boot+temp_prev.boot*prevOR.boot["BloodDo"])
-              if(length(idxBloodDo)>=2)#%in%c(2,3))
+              if(length(idxBloodDo)%in%c(2:5))#if(length(idxBloodDo)>=2)#%in%c(2,3))
               {
                 tabb_all_BloodDo$p[idxBloodDo] = tabb_all_BloodDo$estim[idxBloodDo]+ sample(tabb_all_BloodDo$error[idxBloodDo], replace=T)#tabb_all$error[idxMSM][ERR_SAMP(1:length(tabb_all$error[idxMSM]))]
                 tabb_all_BloodDo$p[idxBloodDo] = exp(tabb_all_BloodDo$p[idxBloodDo])/(1+exp(tabb_all_BloodDo$p[idxBloodDo]))
